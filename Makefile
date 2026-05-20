@@ -3,7 +3,9 @@ CONFIG   := release
 BUILD    := .build/arm64-apple-macosx/$(CONFIG)
 BUNDLE   := $(APP_NAME).app
 
-.PHONY: build app run clean kill install
+.PHONY: build app run clean kill install dmg
+VERSION := 0.1.0
+DMG     := LudeVitals-$(VERSION).dmg
 
 build:
 	swift build -c $(CONFIG) --arch arm64
@@ -32,5 +34,10 @@ install: app
 	open /Applications/$(BUNDLE)
 	@echo "Installed to /Applications/$(BUNDLE)"
 
+dmg: app
+	rm -f $(DMG)
+	hdiutil create -volname "LudeVitals" -srcfolder $(BUNDLE) -ov -format UDZO $(DMG)
+	@echo "Created $(DMG)"
+
 clean:
-	rm -rf .build $(BUNDLE)
+	rm -rf .build $(BUNDLE) $(DMG)

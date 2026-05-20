@@ -47,9 +47,25 @@ Most system monitors are either heavyweight Electron apps that consume more RAM 
 
 ## Install
 
-### Pre-built (recommended)
+### Download (recommended)
 
-Releases will be published once the app is signed and notarized. For now, build from source — it's two commands.
+Grab the latest DMG from the releases page:
+
+**[⬇ Download LudeVitals-0.1.0.dmg](https://github.com/dimitris-di/LudeVitals/releases/latest/download/LudeVitals-0.1.0.dmg)**
+
+Open the DMG and drag `LudeVitals.app` to `/Applications`.
+
+> **The app is not signed or notarized yet.** Apple's Gatekeeper will block it on first launch with a *"LudeVitals cannot be opened because the developer cannot be verified"* error. To allow it, run this once in Terminal:
+>
+> ```bash
+> xattr -dr com.apple.quarantine /Applications/LudeVitals.app
+> ```
+>
+> Then open it again — it will launch normally. This strips the macOS quarantine flag from a locally-trusted app. You only need to do this on first install (and after each update until signing is in place).
+>
+> If you'd rather not run the command, you can also right-click the app in Finder → **Open** → **Open** to bypass the warning one time per version.
+
+A signed + notarized build is on the [roadmap](#roadmap).
 
 ### Build from source
 
@@ -64,6 +80,7 @@ make install
 Other targets:
 - `make app` — build the bundle in the project directory
 - `make run` — build and launch from the project directory
+- `make dmg` — produce `LudeVitals-<version>.dmg` for distribution
 - `make kill` — quit a running instance
 - `make clean` — remove build artifacts
 
