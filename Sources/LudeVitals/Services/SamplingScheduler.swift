@@ -66,7 +66,7 @@ final class SamplingScheduler: ObservableObject {
     }
 }
 
-// TODO: mark Sendable once samplers' mutable state is audited for Swift 6 strict concurrency.
+@MainActor
 protocol AnySampler<Output>: AnyObject {
     associatedtype Output
     func sample() -> Output

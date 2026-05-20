@@ -3,6 +3,7 @@ import Darwin
 import QuartzCore
 import SystemConfiguration
 
+@MainActor
 final class NetworkSampler: AnySampler {
     typealias Output = NetworkMetrics
 

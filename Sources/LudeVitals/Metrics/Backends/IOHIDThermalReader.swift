@@ -4,6 +4,7 @@ import IOKit
 struct ThermalReading { let name: String; let value: Double }
 
 // Private IOHIDEventSystemClient symbols. Stable since macOS 11.
+@MainActor
 final class IOHIDThermalReader {
     private typealias CreateFn  = @convention(c) (CFAllocator?) -> Unmanaged<AnyObject>?
     private typealias MatchFn   = @convention(c) (AnyObject, CFDictionary) -> Void

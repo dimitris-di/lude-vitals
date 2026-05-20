@@ -5,7 +5,7 @@ body:
   - type: markdown
     attributes:
       value: |
-        Thanks for the suggestion. LudeVitals deliberately stays small — please describe the concrete use case so we can weigh it against the scope.
+        Thanks for the suggestion. LudeVitals deliberately stays small. Please describe the concrete use case so we can weigh it against the scope.
 
   - type: textarea
     id: use_case
@@ -19,7 +19,7 @@ body:
     id: proposal
     attributes:
       label: Proposed behavior
-      description: What should LudeVitals do? Be specific — UI placement, sampling rate, data shown.
+      description: What should LudeVitals do? Be specific about UI placement, sampling rate, data shown.
     validations:
       required: true
 

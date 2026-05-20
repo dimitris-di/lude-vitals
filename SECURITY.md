@@ -21,7 +21,7 @@ LudeVitals does not connect to the network, does not run as root, and does not r
 - **Improper handling of Mach / sysctl return values** that lead to memory disclosure or out-of-bounds reads in samplers.
 - **Code-signing or distribution issues** that allow a tampered binary to look legitimate.
 
-If you found any of these, please report.
+If you find any of these, please report them. We aim to ship a fix or mitigation within 30 days, and will credit reporters in the release notes unless asked otherwise.
 
 ## Supported versions
 

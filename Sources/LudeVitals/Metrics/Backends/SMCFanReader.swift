@@ -3,6 +3,7 @@ import IOKit
 
 // AppleSMC userclient still exposes fan keys on Apple Silicon Macs that have fans.
 // MacBook Air (no fans) returns FNum=0 or fails to open; we silently report no fans.
+@MainActor
 final class SMCFanReader {
     private var connection: io_connect_t = 0
     private var attempted = false
@@ -44,7 +45,7 @@ final class SMCFanReader {
     }
 
     private func ensureOpen() -> Bool {
-        assert(MemoryLayout<SMCKeyData>.stride == 80, "SMCKeyData layout drift; SMC reads will fail silently")
+        precondition(MemoryLayout<SMCKeyData>.stride == 80, "SMCKeyData layout drift; SMC reads will fail silently")
         if connection != 0 { return true }
         if attempted { return false }
         attempted = true

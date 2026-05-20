@@ -4,7 +4,7 @@ BUILD    := .build/arm64-apple-macosx/$(CONFIG)
 BUNDLE   := $(APP_NAME).app
 
 .PHONY: build app run clean kill install dmg benchmark icon
-VERSION := 0.1.0
+VERSION := $(shell cat VERSION)
 DMG     := LudeVitals-$(VERSION).dmg
 
 build:

@@ -2,6 +2,7 @@ import Foundation
 import Darwin
 import QuartzCore
 
+@MainActor
 final class CPUSampler: AnySampler {
     typealias Output = CPUMetrics
 

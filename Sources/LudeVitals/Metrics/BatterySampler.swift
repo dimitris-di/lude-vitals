@@ -2,6 +2,7 @@ import Foundation
 import IOKit
 import IOKit.ps
 
+@MainActor
 final class BatterySampler: AnySampler {
     typealias Output = BatteryMetrics?
 

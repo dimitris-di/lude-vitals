@@ -1,0 +1,48 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+jobs:
+  release:
+    runs-on: macos-14
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Verify tag matches VERSION
+        run: |
+          TAG="${GITHUB_REF_NAME#v}"
+          FILE="$(cat VERSION | tr -d '[:space:]')"
+          if [ "$TAG" != "$FILE" ]; then
+            echo "Tag $GITHUB_REF_NAME does not match VERSION file ($FILE)"
+            exit 1
+          fi
+
+      - name: Select Xcode
+        run: sudo xcode-select -s /Applications/Xcode_15.4.app || sudo xcode-select -s /Applications/Xcode.app
+
+      - name: Build app bundle
+        run: make app
+
+      - name: Run tests
+        run: swift test -c release
+
+      - name: Build DMG
+        run: make dmg
+
+      - name: Compute SHA256
+        run: shasum -a 256 LudeVitals-*.dmg | tee SHA256SUMS
+
+      - name: Create draft release
+        uses: softprops/action-gh-release@v2
+        with:
+          draft: true
+          name: "LudeVitals ${{ github.ref_name }}"
+          generate_release_notes: true
+          files: |
+            LudeVitals-*.dmg
+            SHA256SUMS

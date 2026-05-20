@@ -26,6 +26,13 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 - `LudeVitals.entitlements` (no sandbox; ready for future Hardened Runtime + notarization).
 - `Info.plist` now sets `CFBundleIconFile` and `NSHumanReadableCopyright`.
 - Memory pressure sysctl return value is now checked (was silently swallowed).
+- `Tests/LudeVitalsTests/` with unit coverage for `RingBuffer`, `Fmt`, and menu bar formatters (run via `swift test`; requires full Xcode locally, CI runs them on every PR).
+- Tag-driven release workflow at `.github/workflows/release.yml` that builds the DMG, computes `SHA256SUMS`, and uploads to a draft GitHub release.
+- `VERSION` file at the repo root as the single source of truth for app version; `Makefile` reads from it.
+- Split `Views/PopoverRoot.swift` (656 lines) into `Views/Components/*.swift` and `Views/Formatters.swift`.
+- All samplers and their backends are now `@MainActor`-isolated; the `AnySampler` protocol is `@MainActor` for Swift 6 strict-concurrency readiness.
+- `SMCKeyData` stride is now checked with `precondition` (release-retained) rather than `assert`.
+- README now documents the comparison against Stats, iStat Menus, and Activity Monitor.
 
 ### Fixed
 - `BatterySampler` no longer leaks a `CFTypeRef` per sample from `IORegistryEntryCreateCFProperty`.
@@ -33,8 +40,11 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 - `proc_listpids` buffer is sized correctly (was under-allocating on busy systems).
 - CPU tick-mismatch on sleep/wake now returns a clean zero sample instead of garbage deltas.
 - Increased-Contrast users get bumped opacities so card borders and gradients remain visible.
+- Empty-state strings (missing temp, no network interface, no battery time, no top processes yet) read as legible text (`n/a`, `No process samples yet`) instead of `··`.
+- File renamed: `IOReportFanReader.swift` → `SMCFanReader.swift` to match the class inside.
+- README perf claims updated to reflect actual measurements (`~19 MB physical footprint, under 50 MB RSS, < 0.3% idle CPU`).
 
-## [0.1.0] 2026-05-21
+## [0.1.0] - 2026-05-21
 
 ### Added
 

@@ -5,13 +5,13 @@ body:
   - type: markdown
     attributes:
       value: |
-        Thanks for taking the time to file a bug. Please fill in as much as you can — kernel-metric bugs are often Mac-model-specific.
+        Thanks for taking the time to file a bug. Please fill in as much as you can. Kernel-metric bugs are often Mac-model-specific.
 
   - type: input
     id: macos
     attributes:
       label: macOS version
-      description: e.g. 14.5 (23F79) — find it in About This Mac.
+      description: e.g. 14.5 (23F79). Find it in About This Mac.
       placeholder: "14.5 (23F79)"
     validations:
       required: true

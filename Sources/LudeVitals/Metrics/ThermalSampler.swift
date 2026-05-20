@@ -2,6 +2,7 @@ import Foundation
 import IOKit
 import Darwin
 
+@MainActor
 final class ThermalSampler: AnySampler {
     typealias Output = ThermalMetrics
 

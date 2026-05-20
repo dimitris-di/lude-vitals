@@ -64,7 +64,7 @@ struct MenuBarLabel: View {
         if let c = s.thermal.cpuTemperature, c > 3 {
             text = Self.padDigits("\(Int(settings.tempUnit.convert(c).rounded()))", to: 3) + "°"
         } else {
-            text = Self.padDigits("··", to: 3) + " "
+            text = Self.padDigits("n/a", to: 3) + " "
         }
         return block(icon: "thermometer.medium", text: text)
     }

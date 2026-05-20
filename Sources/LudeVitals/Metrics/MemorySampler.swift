@@ -1,6 +1,7 @@
 import Foundation
 import Darwin
 
+@MainActor
 final class MemorySampler: AnySampler {
     typealias Output = MemoryMetrics
 

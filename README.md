@@ -12,10 +12,16 @@ LudeVitals shows your Mac's vital signs (CPU, RAM, temperature, fans, network, a
 
 Most system monitors are either heavyweight Electron apps that consume more RAM than they report, or paid utilities with feature creep. LudeVitals does one thing: it answers "what is my Mac doing right now?" instantly, natively, and with a clear visual hierarchy.
 
-- **Native.** Pure Swift + SwiftUI + AppKit. ~600 KB binary. Idle footprint < 30 MB RAM, < 0.3% CPU.
+- **Native.** Pure Swift + SwiftUI + AppKit. ~850 KB binary. Idle CPU under 0.3%, physical memory footprint around 19 MB (under 50 MB resident in Activity Monitor).
 - **Honest.** All metrics read from the kernel directly. No network requests. Ever.
 - **Customizable.** Choose what shows in the menu bar: temp only, temp + RAM, the full board, or pick your own.
 - **Open.** All sensor access patterns documented in source. No black-box magic.
+
+### How it compares
+
+- **vs. Stats:** smaller binary, fewer preferences, focused on the menu bar and popover only.
+- **vs. iStat Menus:** free and source-readable.
+- **vs. Activity Monitor:** lives in the menu bar, no separate window to open.
 
 ## Features
 
@@ -107,10 +113,10 @@ LudeVitals/
 │   ├─ MemorySampler     host_statistics64 + sysctl
 │   ├─ NetworkSampler    getifaddrs + delta sampling
 │   ├─ BatterySampler    IOPSCopyPowerSourcesInfo + AppleSmartBattery registry
-│   ├─ ThermalSampler    Combines IOHID sensors + SMC fans
+│   ├─ ThermalSampler    Combines IOHID die sensors + SMC fan RPMs
 │   └─ Backends/
 │       ├─ IOHIDThermalReader   Private IOHIDEventSystemClient for Apple Silicon dies
-│       └─ IOReportFanReader    AppleSMC userclient for fan RPM
+│       └─ SMCFanReader         AppleSMC userclient for fan RPM
 └─ Views/                SwiftUI: menu bar label, popover, preferences
 ```
 
