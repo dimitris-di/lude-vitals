@@ -58,7 +58,7 @@ Most system monitors are either heavyweight Electron apps that consume more RAM 
 
 Grab the latest DMG from the releases page:
 
-**[⬇ Download LudeVitals-0.1.0.dmg](https://github.com/dimitris-di/LudeVitals/releases/latest/download/LudeVitals-0.1.0.dmg)**
+**[⬇ Download LudeVitals-0.1.0.dmg](https://github.com/dimitris-di/lude-vitals/releases/latest/download/LudeVitals-0.1.0.dmg)**
 
 Open the DMG and drag `LudeVitals.app` to `/Applications`.
 
@@ -77,7 +77,7 @@ A signed + notarized build is on the [roadmap](#roadmap).
 ### Build from source
 
 ```bash
-git clone https://github.com/dimitris-di/LudeVitals.git
+git clone https://github.com/dimitris-di/lude-vitals.git
 cd LudeVitals
 make install
 ```
@@ -134,7 +134,7 @@ Apple does not expose CPU/GPU die temperatures via any public API. The widely us
 - `IOHIDServiceClientCopyEvent(svc, kIOHIDEventTypeTemperature, 0, 0)` fetches a reading
 - `IOHIDEventGetFloatValue(event, kIOHIDEventTypeTemperature << 16)` extracts °C
 
-These symbols have been stable since macOS 11. If a future macOS version changes them, the thermal sampler degrades gracefully: temps go to `··`, the rest of the app keeps working.
+These symbols have been stable since macOS 11. If a future macOS version changes them, the thermal sampler degrades gracefully: temps go to `n/a`, the rest of the app keeps working.
 
 Fan RPMs are read from `AppleSMC` keys (`F0Ac`, `F0Mn`, `F0Mx`, …) which Apple Silicon still exposes for fan-equipped Macs. MacBook Air and other fanless models return an empty list silently.
 

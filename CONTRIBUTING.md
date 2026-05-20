@@ -10,7 +10,7 @@ Thanks for considering a contribution. A few notes to keep things smooth.
 ## Development setup
 
 ```bash
-git clone https://github.com/dimitris-di/LudeVitals.git
+git clone https://github.com/dimitris-di/lude-vitals.git
 cd LudeVitals
 make run
 ```
