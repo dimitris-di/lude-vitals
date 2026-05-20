@@ -10,6 +10,11 @@ final class NetworkSampler: AnySampler {
     private var lastOut: UInt64 = 0
     private var lastSampleTime: TimeInterval = 0
 
+    private lazy var store: SCDynamicStore? = SCDynamicStoreCreate(nil, "LudeVitals" as CFString, nil, nil)
+    private var cachedPrimary: String?
+    private var cachedPrimaryAge: Int = 0
+    private let primaryRefreshInterval = 5
+
     func sample() -> NetworkMetrics {
         var totalIn: UInt64 = 0
         var totalOut: UInt64 = 0
@@ -47,16 +52,23 @@ final class NetworkSampler: AnySampler {
             bytesOutPerSec: outRate,
             totalBytesIn: totalIn,
             totalBytesOut: totalOut,
-            primaryInterface: Self.primaryInterface()
+            primaryInterface: primaryInterface()
         )
     }
 
-    private static func primaryInterface() -> String? {
-        guard let store = SCDynamicStoreCreate(nil, "LudeVitals" as CFString, nil, nil),
+    private func primaryInterface() -> String? {
+        if cachedPrimary != nil && cachedPrimaryAge < primaryRefreshInterval {
+            cachedPrimaryAge += 1
+            return cachedPrimary
+        }
+        cachedPrimaryAge = 0
+        guard let store,
               let dict = SCDynamicStoreCopyValue(store, "State:/Network/Global/IPv4" as CFString) as? [String: Any],
               let iface = dict["PrimaryInterface"] as? String else {
+            cachedPrimary = nil
             return nil
         }
+        cachedPrimary = iface
         return iface
     }
 }

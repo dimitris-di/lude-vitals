@@ -45,12 +45,16 @@ final class MemorySampler: AnySampler {
 
         var pressureRaw: Int32 = 0
         var pSize = MemoryLayout<Int32>.size
-        sysctlbyname("kern.memorystatus_vm_pressure_level", &pressureRaw, &pSize, nil, 0)
+        let ok = sysctlbyname("kern.memorystatus_vm_pressure_level", &pressureRaw, &pSize, nil, 0) == 0
         let pressure: MemoryPressure
-        switch pressureRaw {
-        case 4: pressure = .critical
-        case 2: pressure = .warning
-        default: pressure = .normal
+        if ok {
+            switch pressureRaw {
+            case 4: pressure = .critical
+            case 2: pressure = .warning
+            default: pressure = .normal
+            }
+        } else {
+            pressure = .normal
         }
 
         return MemoryMetrics(

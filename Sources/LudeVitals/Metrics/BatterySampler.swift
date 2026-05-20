@@ -58,7 +58,9 @@ final class BatterySampler: AnySampler {
     }
 
     private func property(_ service: io_service_t, _ key: String) -> Any? {
-        guard let cf = IORegistryEntryCreateCFProperty(service, key as CFString, kCFAllocatorDefault, 0) else { return nil }
-        return cf.takeRetainedValue()
+        // CF Create Rule: takeRetainedValue balances the +1 from IORegistryEntryCreateCFProperty.
+        let result = IORegistryEntryCreateCFProperty(service, key as CFString, kCFAllocatorDefault, 0)
+        guard let cf = result?.takeRetainedValue() else { return nil }
+        return cf as Any
     }
 }

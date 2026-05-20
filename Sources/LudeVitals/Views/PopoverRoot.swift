@@ -8,23 +8,22 @@ struct PopoverRoot: View {
         let s = scheduler.latest
         let history = scheduler.history.values
 
-        ZStack {
-            Color.clear.background(.ultraThinMaterial)
-
-            ScrollView(showsIndicators: false) {
-                VStack(alignment: .leading, spacing: 14) {
-                    header
-                    heroTiles(s, history: history)
-                    if !s.cpu.perCore.isEmpty { coresCard(s) }
-                    memoryCard(s)
-                    thermalCard(s)
-                    networkCard(s)
-                    if let bat = s.battery { batteryCard(bat) }
-                    processesCard(s)
-                }
-                .padding(14)
+        ScrollView(showsIndicators: false) {
+            VStack(alignment: .leading, spacing: 14) {
+                header
+                heroTiles(s, history: history)
+                if !s.cpu.perCore.isEmpty { coresCard(s) }
+                memoryCard(s)
+                thermalCard(s)
+                networkCard(s)
+                if let bat = s.battery { batteryCard(bat) }
+                processesCard(s)
+                Spacer(minLength: 0)
             }
+            .padding(14)
+            .padding(.bottom, 8)
         }
+        .background(.ultraThinMaterial)
         .frame(width: 400, height: 580)
     }
 
@@ -36,6 +35,7 @@ struct PopoverRoot: View {
                 Image(systemName: "waveform.path.ecg")
                     .imageScale(.medium)
                     .foregroundStyle(.tint)
+                    .accessibilityHidden(true)
                 Text("LudeVitals")
                     .font(.system(size: 14, weight: .semibold, design: .rounded))
             }
@@ -43,10 +43,14 @@ struct PopoverRoot: View {
             Button {
                 (NSApp.delegate as? AppDelegate)?.prefsController.show()
             } label: {
-                Image(systemName: "gearshape").imageScale(.medium)
+                Image(systemName: "gearshape")
+                    .imageScale(.medium)
+                    .frame(width: 24, height: 24)
+                    .contentShape(Rectangle())
             }
             .buttonStyle(.plain)
             .foregroundStyle(.secondary)
+            .accessibilityLabel("Preferences")
         }
     }
 
@@ -58,6 +62,10 @@ struct PopoverRoot: View {
             guard let c = tempCelsius, c > 3 else { return "—" }
             return "\(Int(settings.tempUnit.convert(c).rounded()))°"
         }()
+        let tempA11y: String = {
+            guard let c = tempCelsius, c > 3 else { return "Unavailable" }
+            return "\(Int(settings.tempUnit.convert(c).rounded())) \(settings.tempUnit.symbol)"
+        }()
         return HStack(spacing: 8) {
             HeroTile(
                 title: "CPU",
@@ -65,18 +73,29 @@ struct PopoverRoot: View {
                 tint: .blue,
                 spark: history.map(\.cpu.totalUsage)
             )
+            .accessibilityElement(children: .combine)
+            .accessibilityLabel("CPU usage")
+            .accessibilityValue("\(Int((s.cpu.totalUsage * 100).rounded())) percent")
+
             HeroTile(
                 title: "RAM",
                 value: "\(Int((s.memory.usagePercent * 100).rounded()))%",
                 tint: .purple,
                 spark: history.map(\.memory.usagePercent)
             )
+            .accessibilityElement(children: .combine)
+            .accessibilityLabel("Memory usage")
+            .accessibilityValue("\(Int((s.memory.usagePercent * 100).rounded())) percent")
+
             HeroTile(
                 title: "Temp",
                 value: tempValue,
                 tint: .orange,
                 spark: history.compactMap(\.thermal.cpuTemperature).filter { $0 > 3 }.map { min(1, max(0, ($0 - 30) / 70)) }
             )
+            .accessibilityElement(children: .combine)
+            .accessibilityLabel("CPU temperature")
+            .accessibilityValue(tempA11y)
         }
     }
 
@@ -88,13 +107,22 @@ struct PopoverRoot: View {
                 let p = s.cpu.perCore.filter { $0.type == .performance }
                 let e = s.cpu.perCore.filter { $0.type == .efficiency }
                 let u = s.cpu.perCore.filter { $0.type == .unknown }
-                if !p.isEmpty { CoreRow(label: "P", cores: p) }
-                if !e.isEmpty { CoreRow(label: "E", cores: e) }
-                if !u.isEmpty { CoreRow(label: "•", cores: u) }
+                if !p.isEmpty { CoreRow(label: "P", clusterName: "Performance cores", cores: p) }
+                if !e.isEmpty { CoreRow(label: "E", clusterName: "Efficiency cores", cores: e) }
+                if !u.isEmpty { CoreRow(label: "•", clusterName: "Cores", cores: u) }
                 HStack(spacing: 14) {
                     inlineKV("1m",  String(format: "%.2f", s.cpu.loadAverage.one))
+                        .accessibilityElement(children: .combine)
+                        .accessibilityLabel("Load average 1 minute")
+                        .accessibilityValue(String(format: "%.2f", s.cpu.loadAverage.one))
                     inlineKV("5m",  String(format: "%.2f", s.cpu.loadAverage.five))
+                        .accessibilityElement(children: .combine)
+                        .accessibilityLabel("Load average 5 minutes")
+                        .accessibilityValue(String(format: "%.2f", s.cpu.loadAverage.five))
                     inlineKV("15m", String(format: "%.2f", s.cpu.loadAverage.fifteen))
+                        .accessibilityElement(children: .combine)
+                        .accessibilityLabel("Load average 15 minutes")
+                        .accessibilityValue(String(format: "%.2f", s.cpu.loadAverage.fifteen))
                 }
                 .padding(.top, 2)
             }
@@ -104,22 +132,47 @@ struct PopoverRoot: View {
     // MARK: - Memory
 
     private func memoryCard(_ s: MetricSnapshot) -> some View {
-        Card(title: "Memory", accessory: { AnyView(PressurePill.memory(s.memory.pressure)) }) {
+        Card(title: "Memory", accessory: {
+            PressurePill.memory(s.memory.pressure)
+                .accessibilityElement(children: .combine)
+                .accessibilityLabel("Memory pressure")
+                .accessibilityValue(pressureA11y(s.memory.pressure))
+        }) {
             VStack(alignment: .leading, spacing: 10) {
                 HStack(alignment: .firstTextBaseline, spacing: 4) {
                     Text(Fmt.bytes(s.memory.used))
-                        .font(.system(size: 22, weight: .semibold, design: .rounded).monospacedDigit())
+                        .font(.title3.weight(.semibold).monospacedDigit())
                     Text("of \(Fmt.bytes(s.memory.total))")
                         .font(.callout)
                         .foregroundStyle(.secondary)
                 }
+                .accessibilityElement(children: .combine)
+                .accessibilityLabel("Memory used")
+                .accessibilityValue("\(Fmt.bytes(s.memory.used)) of \(Fmt.bytes(s.memory.total))")
+
                 ProgressBar(value: s.memory.usagePercent, tint: pressureTint(s.memory.pressure))
+                    .accessibilityElement(children: .ignore)
+                    .accessibilityLabel("Memory usage")
+                    .accessibilityValue("\(Int((s.memory.usagePercent * 100).rounded())) percent")
+
                 HStack(spacing: 14) {
                     inlineKV("app",      Fmt.bytes(s.memory.app))
+                        .accessibilityElement(children: .combine)
+                        .accessibilityLabel("App memory")
+                        .accessibilityValue(Fmt.bytes(s.memory.app))
                     inlineKV("wired",    Fmt.bytes(s.memory.wired))
+                        .accessibilityElement(children: .combine)
+                        .accessibilityLabel("Wired memory")
+                        .accessibilityValue(Fmt.bytes(s.memory.wired))
                     inlineKV("comp",     Fmt.bytes(s.memory.compressed))
+                        .accessibilityElement(children: .combine)
+                        .accessibilityLabel("Compressed memory")
+                        .accessibilityValue(Fmt.bytes(s.memory.compressed))
                     if s.memory.swapUsed > 0 {
                         inlineKV("swap", Fmt.bytes(s.memory.swapUsed))
+                            .accessibilityElement(children: .combine)
+                            .accessibilityLabel("Swap used")
+                            .accessibilityValue(Fmt.bytes(s.memory.swapUsed))
                     }
                 }
             }
@@ -131,7 +184,12 @@ struct PopoverRoot: View {
     private func thermalCard(_ s: MetricSnapshot) -> some View {
         let t = s.thermal
         let any = t.cpuTemperature != nil || t.gpuTemperature != nil || !t.fans.isEmpty
-        return Card(title: "Thermal", accessory: { AnyView(PressurePill.thermal(t.thermalPressure)) }) {
+        return Card(title: "Thermal", accessory: {
+            PressurePill.thermal(t.thermalPressure)
+                .accessibilityElement(children: .combine)
+                .accessibilityLabel("Thermal pressure")
+                .accessibilityValue(thermalA11y(t.thermalPressure))
+        }) {
             if !any {
                 Text("Sensors unavailable")
                     .font(.callout)
@@ -139,9 +197,9 @@ struct PopoverRoot: View {
             } else {
                 VStack(alignment: .leading, spacing: 10) {
                     HStack(spacing: 18) {
-                        if let c = t.cpuTemperature { tempReadout("CPU", celsius: c) }
-                        if let g = t.gpuTemperature { tempReadout("GPU", celsius: g) }
-                        if let b = t.batteryTemperature { tempReadout("Battery", celsius: b) }
+                        if let c = t.cpuTemperature { tempReadout("CPU", celsius: c, a11yLabel: "CPU temperature") }
+                        if let g = t.gpuTemperature { tempReadout("GPU", celsius: g, a11yLabel: "GPU temperature") }
+                        if let b = t.batteryTemperature { tempReadout("Battery", celsius: b, a11yLabel: "Battery temperature") }
                         Spacer()
                     }
                     if !t.fans.isEmpty {
@@ -158,15 +216,20 @@ struct PopoverRoot: View {
 
     private func networkCard(_ s: MetricSnapshot) -> some View {
         Card(title: "Network", accessory: {
-            AnyView(
-                Text(s.network.primaryInterface ?? "—")
-                    .font(.caption.monospaced())
-                    .foregroundStyle(.secondary)
-            )
+            Text(s.network.primaryInterface ?? "—")
+                .font(.caption.monospaced())
+                .foregroundStyle(.secondary)
+                .accessibilityLabel("Primary interface \(s.network.primaryInterface ?? "none")")
         }) {
             HStack(spacing: 22) {
                 NetRate(symbol: "arrow.down", color: .green, bps: s.network.bytesInPerSec)
+                    .accessibilityElement(children: .combine)
+                    .accessibilityLabel("Download rate")
+                    .accessibilityValue(Fmt.rate(s.network.bytesInPerSec))
                 NetRate(symbol: "arrow.up", color: .blue, bps: s.network.bytesOutPerSec)
+                    .accessibilityElement(children: .combine)
+                    .accessibilityLabel("Upload rate")
+                    .accessibilityValue(Fmt.rate(s.network.bytesOutPerSec))
                 Spacer()
             }
         }
@@ -176,27 +239,50 @@ struct PopoverRoot: View {
 
     private func batteryCard(_ b: BatteryMetrics) -> some View {
         Card(title: "Battery", accessory: {
-            AnyView(
-                HStack(spacing: 4) {
-                    Image(systemName: b.isCharging ? "bolt.fill" : (b.isPluggedIn ? "powerplug.fill" : "battery.100"))
-                        .imageScale(.small)
-                        .foregroundStyle(b.isCharging ? .yellow : .secondary)
-                    Text("\(Int((b.percentage * 100).rounded()))%")
-                        .font(.caption.weight(.semibold).monospacedDigit())
-                }
-            )
+            HStack(spacing: 4) {
+                Image(systemName: b.isCharging ? "bolt.fill" : (b.isPluggedIn ? "powerplug.fill" : "battery.100"))
+                    .imageScale(.small)
+                    .foregroundStyle(b.isCharging ? .yellow : .secondary)
+                Text("\(Int((b.percentage * 100).rounded()))%")
+                    .font(.caption.weight(.semibold).monospacedDigit())
+            }
+            .accessibilityElement(children: .combine)
+            .accessibilityLabel("Battery level\(b.isCharging ? ", charging" : (b.isPluggedIn ? ", plugged in" : ""))")
+            .accessibilityValue("\(Int((b.percentage * 100).rounded())) percent")
         }) {
             VStack(alignment: .leading, spacing: 10) {
                 ProgressBar(
                     value: b.percentage,
                     tint: b.isCharging ? .green : (b.percentage < 0.15 ? .red : (b.percentage < 0.30 ? .orange : .accentColor))
                 )
+                .accessibilityElement(children: .ignore)
+                .accessibilityLabel("Battery charge")
+                .accessibilityValue("\(Int((b.percentage * 100).rounded())) percent")
+
                 HStack(spacing: 14) {
-                    if let t = b.timeRemainingMinutes { inlineKV(b.isCharging ? "to full" : "remaining", Fmt.duration(minutes: t)) }
-                    if let c = b.cycleCount { inlineKV("cycles", "\(c)") }
-                    if let h = b.health { inlineKV("health", "\(Int((h * 100).rounded()))%") }
+                    if let t = b.timeRemainingMinutes {
+                        inlineKV(b.isCharging ? "to full" : "remaining", Fmt.duration(minutes: t))
+                            .accessibilityElement(children: .combine)
+                            .accessibilityLabel(b.isCharging ? "Time to full" : "Time remaining")
+                            .accessibilityValue(Fmt.duration(minutes: t))
+                    }
+                    if let c = b.cycleCount {
+                        inlineKV("cycles", "\(c)")
+                            .accessibilityElement(children: .combine)
+                            .accessibilityLabel("Cycle count")
+                            .accessibilityValue("\(c)")
+                    }
+                    if let h = b.health {
+                        inlineKV("health", "\(Int((h * 100).rounded()))%")
+                            .accessibilityElement(children: .combine)
+                            .accessibilityLabel("Battery health")
+                            .accessibilityValue("\(Int((h * 100).rounded())) percent")
+                    }
                     if let w = b.wattage {
                         inlineKV("power", String(format: "%@%.1fW", w >= 0 ? "+" : "−", abs(w)))
+                            .accessibilityElement(children: .combine)
+                            .accessibilityLabel("Power")
+                            .accessibilityValue(String(format: "%.1f watts", abs(w)))
                     }
                 }
             }
@@ -220,47 +306,69 @@ struct PopoverRoot: View {
         }
     }
 
-    private func tempReadout(_ label: String, celsius: Double) -> some View {
+    private func tempReadout(_ label: String, celsius: Double, a11yLabel: String) -> some View {
         let v = settings.tempUnit.convert(celsius)
         return VStack(alignment: .leading, spacing: 1) {
             Text(label).font(.caption2).foregroundStyle(.secondary)
             Text("\(Int(v.rounded()))\(settings.tempUnit.symbol)")
-                .font(.system(size: 18, weight: .semibold, design: .rounded).monospacedDigit())
+                .font(.title3.weight(.semibold).monospacedDigit())
         }
+        .accessibilityElement(children: .combine)
+        .accessibilityLabel(a11yLabel)
+        .accessibilityValue("\(Int(v.rounded())) \(settings.tempUnit.symbol)")
     }
 
     private func pressureTint(_ p: MemoryPressure) -> Color {
         switch p { case .normal: return .accentColor; case .warning: return .orange; case .critical: return .red }
     }
+
+    private func pressureA11y(_ p: MemoryPressure) -> String {
+        switch p { case .normal: return "normal"; case .warning: return "warning"; case .critical: return "critical" }
+    }
+
+    private func thermalA11y(_ p: ThermalPressure) -> String {
+        switch p { case .nominal: return "nominal"; case .fair: return "fair"; case .serious: return "serious"; case .critical: return "critical" }
+    }
 }
 
 // MARK: - Card
 
-struct Card<Content: View>: View {
+struct Card<Content: View, Accessory: View>: View {
     let title: String
-    var accessory: (() -> AnyView)? = nil
-    @ViewBuilder let content: Content
+    @ViewBuilder var accessory: () -> Accessory
+    @ViewBuilder var content: () -> Content
+    @Environment(\.colorSchemeContrast) private var contrast
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 10) {
+        let strokeOpacity = contrast == .increased ? 0.25 : 0.06
+        let fillOpacity   = contrast == .increased ? 0.55 : 0.4
+        return VStack(alignment: .leading, spacing: 10) {
             HStack {
                 Text(title)
-                    .font(.system(size: 12, weight: .semibold, design: .rounded))
+                    .font(.caption.weight(.semibold))
                     .foregroundStyle(.secondary)
                 Spacer()
-                if let a = accessory { a() }
+                accessory()
             }
-            content
+            content()
         }
         .padding(14)
         .background(
             RoundedRectangle(cornerRadius: 14, style: .continuous)
-                .fill(.background.opacity(0.4))
+                .fill(.background.opacity(fillOpacity))
         )
         .overlay(
             RoundedRectangle(cornerRadius: 14, style: .continuous)
-                .strokeBorder(Color.primary.opacity(0.06))
+                .strokeBorder(Color.primary.opacity(strokeOpacity))
         )
+    }
+}
+
+extension Card where Accessory == EmptyView {
+    init(title: String, @ViewBuilder content: @escaping () -> Content) {
+        self.title = title
+        self.accessory = { EmptyView() }
+        self.content = content
     }
 }
 
@@ -271,21 +379,24 @@ struct HeroTile: View {
     let value: String
     let tint: Color
     let spark: [Double]
+    @Environment(\.colorSchemeContrast) private var contrast
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 4) {
+        let gradStart = contrast == .increased ? tint.opacity(0.35) : tint.opacity(0.20)
+        let gradEnd   = contrast == .increased ? tint.opacity(0.20) : tint.opacity(0.05)
+        let stroke    = contrast == .increased ? tint.opacity(0.45) : tint.opacity(0.22)
+        return VStack(alignment: .leading, spacing: 4) {
             Text(title.uppercased())
-                .font(.system(size: 10, weight: .semibold, design: .rounded))
+                .font(.caption.weight(.semibold).monospaced())
                 .tracking(0.6)
                 .foregroundStyle(tint)
             Text(value)
-                .font(.system(size: 24, weight: .semibold, design: .rounded).monospacedDigit())
+                .font(.title2.weight(.semibold).monospacedDigit())
                 .lineLimit(1)
                 .minimumScaleFactor(0.6)
-            GeometryReader { geo in
-                Sparkline(values: spark, width: geo.size.width, height: 16, color: tint, lineWidth: 1.6)
-            }
-            .frame(height: 16)
+            Sparkline(values: spark, height: 16, color: tint, lineWidth: 1.6)
+                .frame(maxWidth: .infinity)
+                .accessibilityHidden(true)
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .padding(.horizontal, 12)
@@ -293,13 +404,13 @@ struct HeroTile: View {
         .background(
             RoundedRectangle(cornerRadius: 14, style: .continuous)
                 .fill(LinearGradient(
-                    colors: [tint.opacity(0.20), tint.opacity(0.05)],
+                    colors: [gradStart, gradEnd],
                     startPoint: .topLeading, endPoint: .bottomTrailing
                 ))
         )
         .overlay(
             RoundedRectangle(cornerRadius: 14, style: .continuous)
-                .strokeBorder(tint.opacity(0.22))
+                .strokeBorder(stroke)
         )
     }
 }
@@ -308,26 +419,23 @@ struct HeroTile: View {
 
 struct CoreRow: View {
     let label: String
+    var clusterName: String = "Cores"
     let cores: [CoreUsage]
+    @Environment(\.colorSchemeContrast) private var contrast
 
     var body: some View {
-        HStack(alignment: .center, spacing: 10) {
+        let trackOpacity = contrast == .increased ? 0.2 : 0.08
+        return HStack(alignment: .center, spacing: 10) {
             Text(label)
-                .font(.system(size: 11, weight: .semibold, design: .rounded))
+                .font(.caption.weight(.semibold))
                 .foregroundStyle(.secondary)
                 .frame(width: 12, alignment: .leading)
+                .accessibilityHidden(true)
             HStack(spacing: 3) {
                 ForEach(cores) { c in
-                    GeometryReader { geo in
-                        ZStack(alignment: .bottom) {
-                            RoundedRectangle(cornerRadius: 3, style: .continuous)
-                                .fill(Color.primary.opacity(0.08))
-                            RoundedRectangle(cornerRadius: 3, style: .continuous)
-                                .fill(barColor(c.usage))
-                                .frame(height: max(2, geo.size.height * CGFloat(min(1, max(0, c.usage)))))
-                        }
-                    }
-                    .frame(width: 10, height: 26)
+                    CoreBar(usage: c.usage, trackOpacity: trackOpacity)
+                        .frame(width: 10, height: 26)
+                        .accessibilityHidden(true)
                 }
             }
             Spacer()
@@ -335,10 +443,29 @@ struct CoreRow: View {
                 .font(.caption.monospacedDigit())
                 .foregroundStyle(.secondary)
         }
+        .accessibilityElement(children: .combine)
+        .accessibilityLabel(clusterName)
+        .accessibilityValue("Average \(Int((average(cores) * 100).rounded())) percent across \(cores.count) cores")
     }
 
     private func average(_ c: [CoreUsage]) -> Double {
         c.isEmpty ? 0 : c.map(\.usage).reduce(0, +) / Double(c.count)
+    }
+}
+
+private struct CoreBar: View {
+    let usage: Double
+    let trackOpacity: Double
+    var body: some View {
+        GeometryReader { geo in
+            ZStack(alignment: .bottom) {
+                RoundedRectangle(cornerRadius: 3, style: .continuous)
+                    .fill(Color.primary.opacity(trackOpacity))
+                RoundedRectangle(cornerRadius: 3, style: .continuous)
+                    .fill(barColor(usage))
+                    .frame(height: max(2, geo.size.height * CGFloat(min(1, max(0, usage)))))
+            }
+        }
     }
     private func barColor(_ v: Double) -> Color {
         v < 0.6 ? .green : (v < 0.85 ? .yellow : .red)
@@ -350,11 +477,13 @@ struct CoreRow: View {
 struct ProgressBar: View {
     let value: Double
     let tint: Color
+    @Environment(\.colorSchemeContrast) private var contrast
 
     var body: some View {
-        GeometryReader { geo in
+        let trackOpacity = contrast == .increased ? 0.2 : 0.08
+        return GeometryReader { geo in
             ZStack(alignment: .leading) {
-                Capsule().fill(Color.primary.opacity(0.08))
+                Capsule().fill(Color.primary.opacity(trackOpacity))
                 Capsule().fill(tint).frame(width: geo.size.width * CGFloat(max(0, min(1, value))))
             }
         }
@@ -376,9 +505,10 @@ struct NetRate: View {
                 .foregroundStyle(color)
                 .frame(width: 18, height: 18)
                 .background(Circle().fill(color.opacity(0.15)))
+                .accessibilityHidden(true)
             VStack(alignment: .leading, spacing: 0) {
                 Text(Fmt.rate(bps))
-                    .font(.system(size: 14, weight: .semibold, design: .rounded).monospacedDigit())
+                    .font(.callout.weight(.semibold).monospacedDigit())
                 Text(symbol.contains("down") ? "download" : "upload")
                     .font(.caption2).foregroundStyle(.tertiary)
             }
@@ -395,16 +525,20 @@ struct FanRow: View {
             Image(systemName: "fanblades")
                 .imageScale(.small)
                 .foregroundStyle(.secondary)
+                .accessibilityHidden(true)
             Text(reading.label)
                 .font(.caption)
                 .foregroundStyle(.secondary)
             Spacer()
             Text("\(reading.rpm)")
-                .font(.system(size: 13, weight: .semibold, design: .rounded).monospacedDigit())
+                .font(.callout.weight(.semibold).monospacedDigit())
             Text("RPM")
                 .font(.caption2)
                 .foregroundStyle(.tertiary)
         }
+        .accessibilityElement(children: .combine)
+        .accessibilityLabel("Fan \(reading.label)")
+        .accessibilityValue("\(reading.rpm) RPM")
     }
 }
 
@@ -415,7 +549,7 @@ struct PressurePill: View {
     let tint: Color
     var body: some View {
         HStack(spacing: 4) {
-            Circle().fill(tint).frame(width: 6, height: 6)
+            Circle().fill(tint).frame(width: 6, height: 6).accessibilityHidden(true)
             Text(label).font(.caption2.weight(.medium))
         }
         .padding(.horizontal, 7).padding(.vertical, 3)
@@ -448,11 +582,13 @@ struct ProcessListView: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
-            Picker("", selection: $sort) {
+            Picker("Sort processes", selection: $sort) {
                 ForEach(SortMode.allCases) { Text($0.rawValue).tag($0) }
             }
             .pickerStyle(.segmented)
-            .frame(width: 110)
+            .labelsHidden()
+            .fixedSize(horizontal: true, vertical: false)
+            .accessibilityLabel("Sort processes")
 
             let rows = (sort == .cpu
                 ? processes.sorted { $0.cpu > $1.cpu }
@@ -466,18 +602,23 @@ struct ProcessListView: View {
                     ForEach(Array(rows)) { p in
                         HStack(spacing: 8) {
                             Text(p.name)
-                                .font(.system(size: 12, weight: .medium))
+                                .font(.callout.weight(.medium))
                                 .lineLimit(1).truncationMode(.tail)
                             Spacer()
                             Text(String(format: "%.1f%%", p.cpu * 100))
                                 .font(.caption.monospacedDigit())
                                 .foregroundStyle(sort == .cpu ? .primary : .secondary)
-                                .frame(width: 52, alignment: .trailing)
+                                .frame(minWidth: 52, alignment: .trailing)
+                                .fixedSize(horizontal: true, vertical: false)
                             Text(Fmt.bytes(p.memoryBytes))
                                 .font(.caption.monospacedDigit())
                                 .foregroundStyle(sort == .mem ? .primary : .secondary)
-                                .frame(width: 60, alignment: .trailing)
+                                .frame(minWidth: 60, alignment: .trailing)
+                                .fixedSize(horizontal: true, vertical: false)
                         }
+                        .accessibilityElement(children: .combine)
+                        .accessibilityLabel("Process \(p.name)")
+                        .accessibilityValue("CPU \(String(format: "%.1f", p.cpu * 100)) percent, memory \(Fmt.bytes(p.memoryBytes))")
                     }
                 }
             }

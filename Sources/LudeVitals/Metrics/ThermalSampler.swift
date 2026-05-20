@@ -11,20 +11,35 @@ final class ThermalSampler: AnySampler {
     func sample() -> ThermalMetrics {
         let readings = hid.read()
 
-        func avg(_ predicate: (String) -> Bool) -> Double? {
-            let vals = readings.filter { predicate($0.name) }.map(\.value)
-            guard !vals.isEmpty else { return nil }
-            return vals.reduce(0, +) / Double(vals.count)
+        var cpuSum = 0.0, cpuCount = 0
+        var tdieSum = 0.0, tdieCount = 0
+        var gpuSum = 0.0, gpuCount = 0
+        var periphSum = 0.0, periphCount = 0
+        var battery: Double?
+
+        for r in readings {
+            let n = r.name
+            if n.contains("pACC") || n.contains("eACC") || n.contains("CPU") || n.contains("PMU tdie") {
+                cpuSum += r.value; cpuCount += 1
+            }
+            if n.contains("tdie") {
+                tdieSum += r.value; tdieCount += 1
+            }
+            if n.contains("GPU") || n.contains("gACC") {
+                gpuSum += r.value; gpuCount += 1
+            }
+            if n.contains("airflow") || n.contains("NAND") {
+                periphSum += r.value; periphCount += 1
+            }
+            if battery == nil, n.lowercased().contains("battery") {
+                battery = r.value
+            }
         }
 
-        let cpu = avg { n in
-            let l = n
-            return l.contains("pACC") || l.contains("eACC") || l.contains("CPU") || l.contains("PMU tdie")
-        } ?? avg { $0.contains("tdie") }
-
-        let gpu = avg { $0.contains("GPU") || $0.contains("gACC") }
-        let battery = readings.first { $0.name.lowercased().contains("battery") }?.value
-        let peripheral = avg { $0.contains("airflow") || $0.contains("NAND") }
+        let cpu: Double? = cpuCount > 0 ? cpuSum / Double(cpuCount)
+            : (tdieCount > 0 ? tdieSum / Double(tdieCount) : nil)
+        let gpu: Double? = gpuCount > 0 ? gpuSum / Double(gpuCount) : nil
+        let peripheral: Double? = periphCount > 0 ? periphSum / Double(periphCount) : nil
 
         return ThermalMetrics(
             cpuTemperature: cpu,

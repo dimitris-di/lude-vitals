@@ -1,3 +1,4 @@
+import Combine
 import Foundation
 import SwiftUI
 
@@ -40,9 +41,9 @@ final class AppSettings: ObservableObject {
     @AppStorage("tempUnit") var tempUnit: TempUnit = .celsius
     @AppStorage("launchAtLogin") var launchAtLogin: Bool = false
 
-    @Published var customOptions: CustomDisplayOptions {
-        didSet { persistCustom() }
-    }
+    @Published var customOptions: CustomDisplayOptions
+
+    private var cancellables = Set<AnyCancellable>()
 
     private init() {
         if let data = UserDefaults.standard.data(forKey: "customOptions"),
@@ -51,10 +52,16 @@ final class AppSettings: ObservableObject {
         } else {
             self.customOptions = CustomDisplayOptions()
         }
+
+        $customOptions
+            .dropFirst()
+            .debounce(for: .milliseconds(300), scheduler: DispatchQueue.main)
+            .sink { [weak self] options in self?.persist(options) }
+            .store(in: &cancellables)
     }
 
-    private func persistCustom() {
-        if let data = try? JSONEncoder().encode(customOptions) {
+    private func persist(_ opts: CustomDisplayOptions) {
+        if let data = try? JSONEncoder().encode(opts) {
             UserDefaults.standard.set(data, forKey: "customOptions")
         }
     }

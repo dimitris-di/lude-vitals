@@ -7,6 +7,8 @@ final class CPUSampler: AnySampler {
 
     private struct CoreTicks { var user: UInt32; var system: UInt32; var idle: UInt32; var nice: UInt32 }
 
+    var collectTopProcesses: Bool = false
+
     private var previousTicks: [CoreTicks] = []
     private var previousPidTicks: [Int32: UInt64] = [:]
     private var previousProcSample: TimeInterval = 0
@@ -55,7 +57,18 @@ final class CPUSampler: AnySampler {
             ))
         }
 
-        let prev = previousTicks.count == current.count ? previousTicks : current
+        if previousTicks.count != current.count {
+            previousTicks = current
+            var load: [Double] = [0, 0, 0]
+            getloadavg(&load, 3)
+            return CPUMetrics(
+                totalUsage: 0, userUsage: 0, systemUsage: 0, idleUsage: 1,
+                perCore: [], pCoreAverage: nil, eCoreAverage: nil,
+                loadAverage: LoadAverage(one: load[0], five: load[1], fifteen: load[2]),
+                topProcesses: []
+            )
+        }
+        let prev = previousTicks
         previousTicks = current
 
         var perCore: [CoreUsage] = []
@@ -98,7 +111,7 @@ final class CPUSampler: AnySampler {
             pCoreAverage: pCount > 0 ? pSum / Double(pCount) : nil,
             eCoreAverage: eCount > 0 ? eSum / Double(eCount) : nil,
             loadAverage: LoadAverage(one: load[0], five: load[1], fifteen: load[2]),
-            topProcesses: topProcesses(totalDelta: totAll)
+            topProcesses: collectTopProcesses ? topProcesses(totalDelta: totAll) : []
         )
     }
 
@@ -107,12 +120,14 @@ final class CPUSampler: AnySampler {
         let elapsed = previousProcSample == 0 ? 0 : (now - previousProcSample)
         previousProcSample = now
 
+        // proc_listpids first call returns bytes needed, not a pid count.
         var pidCount = proc_listpids(UInt32(PROC_ALL_PIDS), 0, nil, 0)
         if pidCount <= 0 { return [] }
-        let cap = Int(pidCount) / MemoryLayout<pid_t>.stride + 32
+        let bytesNeeded = Int(pidCount)
+        let cap = (bytesNeeded / MemoryLayout<pid_t>.stride) * 2 + 64
         var pids = [pid_t](repeating: 0, count: cap)
         pidCount = pids.withUnsafeMutableBufferPointer { buf -> Int32 in
-            proc_listpids(UInt32(PROC_ALL_PIDS), 0, buf.baseAddress, Int32(buf.count * MemoryLayout<pid_t>.stride))
+            proc_listpids(UInt32(PROC_ALL_PIDS), 0, buf.baseAddress, Int32(cap * MemoryLayout<pid_t>.stride))
         }
         if pidCount <= 0 { return [] }
         let realCount = Int(pidCount) / MemoryLayout<pid_t>.stride
@@ -140,6 +155,7 @@ final class CPUSampler: AnySampler {
             } else {
                 cpu = 0
             }
+            nameBuf[0] = 0
             let n = proc_name(pid, &nameBuf, UInt32(nameBuf.count))
             let name = n > 0 ? String(cString: nameBuf) : "pid \(pid)"
             rows.append(ProcessUsage(id: pid, name: name, cpu: cpu, memoryBytes: info.pti_resident_size))

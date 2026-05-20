@@ -2,19 +2,27 @@
 .build/
 .swiftpm/
 Package.resolved
+Packages/
 
 # Xcode
 *.xcodeproj/
 DerivedData/
 *.xcuserstate
+xcuserdata/
 
 # Built artifacts
 *.app
 *.dmg
 *.zip
+*.dSYM/
+
+# Icon generation intermediates
+AppIcon.iconset/
+icon-1024.png
 
 # macOS
 .DS_Store
+*.icloud
 
 # Editors
 .vscode/

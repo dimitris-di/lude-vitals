@@ -1,0 +1,32 @@
+name: Build
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  build:
+    runs-on: macos-14
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Select Xcode
+        run: sudo xcode-select -s /Applications/Xcode_15.4.app
+
+      - name: Show toolchain
+        run: |
+          swift --version
+          xcodebuild -version
+
+      - name: Build (release, arm64)
+        run: swift build -c release --arch arm64
+
+      - name: Assemble .app
+        run: make app
+
+      - name: Inspect bundle
+        run: |
+          ls -la LudeVitals.app/Contents/
+          file LudeVitals.app/Contents/MacOS/LudeVitals

@@ -22,5 +22,9 @@
     <true/>
     <key>NSHighResolutionCapable</key>
     <true/>
+    <key>CFBundleIconFile</key>
+    <string>AppIcon</string>
+    <key>NSHumanReadableCopyright</key>
+    <string>Copyright © 2026 Dimitris Dimitriou. MIT licensed.</string>
 </dict>
 </plist>

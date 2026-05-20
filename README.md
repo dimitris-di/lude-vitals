@@ -81,8 +81,12 @@ Other targets:
 - `make app` — build the bundle in the project directory
 - `make run` — build and launch from the project directory
 - `make dmg` — produce `LudeVitals-<version>.dmg` for distribution
+- `make icon` — regenerate `Resources/AppIcon.icns`
+- `make benchmark` — print binary size and idle CPU / RSS for the running app
 - `make kill` — quit a running instance
 - `make clean` — remove build artifacts
+
+On managed Macs you may need `sudo make install` because `/Applications` is not user-writable.
 
 ## Customizing what's shown
 

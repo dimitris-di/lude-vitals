@@ -19,6 +19,9 @@ struct MenuBarLabel: View {
         .foregroundStyle(.primary)
         .padding(.horizontal, 2)
         .fixedSize()
+        .dynamicTypeSize(...DynamicTypeSize.xxLarge)
+        .accessibilityElement(children: .combine)
+        .accessibilityLabel(accessibilitySummary(s, isStale: isStale))
     }
 
     @ViewBuilder
@@ -42,7 +45,8 @@ struct MenuBarLabel: View {
             if o.showNetwork     { netBlock(s) }
             if o.showSparkline {
                 Sparkline(values: scheduler.history.values.map(\.cpu.totalUsage),
-                          width: 28, height: 13, color: .accentColor, lineWidth: 1.4)
+                          height: 13, color: .accentColor, lineWidth: 1.4)
+                    .frame(width: 28)
             }
         }
     }
@@ -81,5 +85,35 @@ struct MenuBarLabel: View {
         if v >= 1_000_000 { return String(format: "%.1fM", v / 1_000_000) }
         if v >= 1_000     { return String(format: "%.0fK", v / 1_000) }
         return "0K"
+    }
+
+    private func accessibilitySummary(_ s: MetricSnapshot, isStale: Bool) -> String {
+        if isStale { return "LudeVitals loading" }
+        var parts: [String] = []
+        let cpu = Int((s.cpu.totalUsage * 100).rounded())
+        let mem = Int((s.memory.usagePercent * 100).rounded())
+        let tempStr: String? = {
+            guard let c = s.thermal.cpuTemperature, c > 3 else { return nil }
+            return "\(Int(settings.tempUnit.convert(c).rounded())) degrees"
+        }()
+        switch settings.displayMode {
+        case .minimal:
+            if let t = tempStr { parts.append("Temperature \(t)") }
+        case .balanced:
+            if let t = tempStr { parts.append("Temperature \(t)") }
+            parts.append("Memory \(mem) percent")
+        case .full:
+            parts.append("CPU \(cpu) percent")
+            parts.append("Memory \(mem) percent")
+            if let t = tempStr { parts.append("Temperature \(t)") }
+            parts.append("Network \(Self.compactRate(s.network.bytesInPerSec + s.network.bytesOutPerSec)) per second")
+        case .custom:
+            let o = settings.customOptions
+            if o.showCPU { parts.append("CPU \(cpu) percent") }
+            if o.showMemory { parts.append("Memory \(mem) percent") }
+            if o.showTemperature, let t = tempStr { parts.append("Temperature \(t)") }
+            if o.showNetwork { parts.append("Network \(Self.compactRate(s.network.bytesInPerSec + s.network.bytesOutPerSec)) per second") }
+        }
+        return parts.isEmpty ? "LudeVitals" : "LudeVitals: " + parts.joined(separator: ", ")
     }
 }

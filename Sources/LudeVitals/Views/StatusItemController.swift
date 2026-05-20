@@ -10,6 +10,7 @@ final class StatusItemController: NSObject {
     private let popover: NSPopover
     private let host: NSHostingView<MenuBarLabel>
     private var cancellables: Set<AnyCancellable> = []
+    private var lastWidth: CGFloat = -1
 
     init(scheduler: SamplingScheduler, settings: AppSettings) {
         self.scheduler = scheduler
@@ -43,7 +44,7 @@ final class StatusItemController: NSObject {
             .store(in: &cancellables)
 
         settings.objectWillChange
-            .receive(on: RunLoop.main)
+            .debounce(for: .milliseconds(100), scheduler: RunLoop.main)
             .sink { [weak self] _ in
                 DispatchQueue.main.async { self?.resize() }
             }
@@ -56,6 +57,8 @@ final class StatusItemController: NSObject {
         host.layoutSubtreeIfNeeded()
         let fitting = host.fittingSize
         let width = max(28, ceil(fitting.width))
+        if width == lastWidth { return }
+        lastWidth = width
         let height = NSStatusBar.system.thickness
         host.frame = NSRect(x: 0, y: 0, width: width, height: height)
         statusItem.length = width
@@ -77,9 +80,13 @@ final class StatusItemController: NSObject {
         guard let button = statusItem.button else { return }
         if popover.isShown {
             popover.performClose(nil)
-            scheduler.setInterval(2.0)
+            scheduler.setInterval(settings.sampleInterval)
+            scheduler.popoverIsOpen = false
+            (scheduler.cpuSampler as? CPUSampler)?.collectTopProcesses = false
         } else {
             scheduler.setInterval(1.0)
+            scheduler.popoverIsOpen = true
+            (scheduler.cpuSampler as? CPUSampler)?.collectTopProcesses = true
             popover.show(relativeTo: button.bounds, of: button, preferredEdge: .minY)
             popover.contentViewController?.view.window?.makeKey()
         }

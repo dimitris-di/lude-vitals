@@ -1,14 +1,13 @@
 import Foundation
 import Combine
 
-/// Central sampling loop. Runs on a background DispatchQueue at `interval`
-/// seconds, collects all samplers, publishes the snapshot on the main thread.
-///
-/// Agents wire their samplers via the public properties before calling `start()`.
 @MainActor
 final class SamplingScheduler: ObservableObject {
     @Published private(set) var latest: MetricSnapshot = .placeholder
     @Published private(set) var history: RingBuffer<MetricSnapshot> = RingBuffer(capacity: 60)
+
+    // Set by StatusItemController; samplers can branch on this to do cheap-only work when false.
+    @Published var popoverIsOpen: Bool = false
 
     var cpuSampler:     (any AnySampler<CPUMetrics>)?
     var memorySampler:  (any AnySampler<MemoryMetrics>)?
@@ -19,6 +18,7 @@ final class SamplingScheduler: ObservableObject {
     private var timer: DispatchSourceTimer?
     private let queue = DispatchQueue(label: "com.lude.LudeVitals.sampling", qos: .utility)
     private(set) var interval: TimeInterval
+    private var isSampling = false
 
     init(interval: TimeInterval = 2.0, historyCapacity: Int = 60) {
         self.interval = interval
@@ -46,6 +46,10 @@ final class SamplingScheduler: ObservableObject {
 
     private nonisolated func tick() {
         Task { @MainActor in
+            guard !self.isSampling else { return }
+            self.isSampling = true
+            defer { self.isSampling = false }
+
             let cpu     = self.cpuSampler?.sample()     ?? .zero
             let memory  = self.memorySampler?.sample()  ?? .zero
             let thermal = self.thermalSampler?.sample() ?? .zero
@@ -62,7 +66,7 @@ final class SamplingScheduler: ObservableObject {
     }
 }
 
-/// Type-erased sampler wrapper to dodge associated-type constraints at storage time.
+// TODO: mark Sendable once samplers' mutable state is audited for Swift 6 strict concurrency.
 protocol AnySampler<Output>: AnyObject {
     associatedtype Output
     func sample() -> Output

@@ -1,0 +1,71 @@
+name: Bug report
+description: Report something that is broken or misbehaving in LudeVitals.
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for taking the time to file a bug. Please fill in as much as you can — kernel-metric bugs are often Mac-model-specific.
+
+  - type: input
+    id: macos
+    attributes:
+      label: macOS version
+      description: e.g. 14.5 (23F79) — find it in About This Mac.
+      placeholder: "14.5 (23F79)"
+    validations:
+      required: true
+
+  - type: input
+    id: model
+    attributes:
+      label: Mac model identifier
+      description: Run `sysctl hw.model` in Terminal.
+      placeholder: "Mac15,3"
+    validations:
+      required: true
+
+  - type: input
+    id: version
+    attributes:
+      label: LudeVitals version
+      description: Shown in Preferences → About, or use the DMG filename.
+      placeholder: "0.1.0"
+    validations:
+      required: true
+
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected behavior
+      description: What did you think would happen?
+    validations:
+      required: true
+
+  - type: textarea
+    id: actual
+    attributes:
+      label: Actual behavior
+      description: What actually happened? Screenshots welcome.
+    validations:
+      required: true
+
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce
+      placeholder: |
+        1. Launch LudeVitals
+        2. Open the popover
+        3. ...
+    validations:
+      required: true
+
+  - type: textarea
+    id: ips
+    attributes:
+      label: Crash log (.ips) or console output
+      description: Optional. If LudeVitals crashed, attach the `.ips` from `~/Library/Logs/DiagnosticReports/`.
+      render: text
+    validations:
+      required: false

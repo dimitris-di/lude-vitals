@@ -6,6 +6,8 @@ import IOKit
 final class SMCFanReader {
     private var connection: io_connect_t = 0
     private var attempted = false
+    private var cachedFanCount: Int?
+    private var cachedFanRanges: [(min: Int, max: Int)] = []
 
     private struct SMCKeyData {
         var key: UInt32 = 0
@@ -37,7 +39,12 @@ final class SMCFanReader {
             (0,0,0,0,0,0,0,0, 0,0,0,0,0,0,0,0, 0,0,0,0,0,0,0,0, 0,0,0,0,0,0,0,0)
     }
 
+    deinit {
+        if connection != 0 { IOServiceClose(connection) }
+    }
+
     private func ensureOpen() -> Bool {
+        assert(MemoryLayout<SMCKeyData>.stride == 80, "SMCKeyData layout drift — SMC reads will fail silently")
         if connection != 0 { return true }
         if attempted { return false }
         attempted = true
@@ -87,35 +94,49 @@ final class SMCFanReader {
     }
 
     private func decodeRPM(_ d: SMCKeyData) -> Double? {
-        let b = withUnsafePointer(to: d.bytes) {
-            $0.withMemoryRebound(to: UInt8.self, capacity: 32) { Array(UnsafeBufferPointer(start: $0, count: 32)) }
-        }
         let type = d.keyInfoDataType
         let fpe2 = fourCC("fpe2")
         let flt  = fourCC("flt ")
-        if type == fpe2 {
-            let raw = (UInt16(b[0]) << 8) | UInt16(b[1])
-            return Double(raw) / 4.0
-        } else if type == flt {
-            let raw = (UInt32(b[0]) << 24) | (UInt32(b[1]) << 16) | (UInt32(b[2]) << 8) | UInt32(b[3])
-            return Double(Float(bitPattern: raw))
+        return withUnsafeBytes(of: d.bytes) { raw -> Double? in
+            if type == fpe2 {
+                let v = (UInt16(raw[0]) << 8) | UInt16(raw[1])
+                return Double(v) / 4.0
+            } else if type == flt {
+                let v = (UInt32(raw[0]) << 24) | (UInt32(raw[1]) << 16) | (UInt32(raw[2]) << 8) | UInt32(raw[3])
+                return Double(Float(bitPattern: v))
+            }
+            return nil
         }
-        return nil
     }
 
     func readFans() -> [FanReading] {
-        guard ensureOpen(), let countData = readKey("FNum") else { return [] }
-        let b = withUnsafePointer(to: countData.bytes) {
-            $0.withMemoryRebound(to: UInt8.self, capacity: 32) { $0[0] }
+        guard ensureOpen() else { return [] }
+        let n: Int
+        if let cached = cachedFanCount {
+            n = cached
+        } else {
+            guard let countData = readKey("FNum") else { return [] }
+            let first = withUnsafeBytes(of: countData.bytes) { $0[0] }
+            n = Int(first)
+            cachedFanCount = n
+            if n > 0 {
+                var ranges: [(min: Int, max: Int)] = []
+                ranges.reserveCapacity(n)
+                for i in 0..<n {
+                    let mn = readKey("F\(i)Mn").flatMap(decodeRPM) ?? 0
+                    let mx = readKey("F\(i)Mx").flatMap(decodeRPM) ?? 0
+                    ranges.append((Int(mn), Int(mx)))
+                }
+                cachedFanRanges = ranges
+            }
         }
-        let n = Int(b)
         if n == 0 { return [] }
         var out: [FanReading] = []
+        out.reserveCapacity(n)
         for i in 0..<n {
             let ac = readKey("F\(i)Ac").flatMap(decodeRPM) ?? 0
-            let mn = readKey("F\(i)Mn").flatMap(decodeRPM) ?? 0
-            let mx = readKey("F\(i)Mx").flatMap(decodeRPM) ?? 0
-            out.append(FanReading(id: i, label: "Fan \(i + 1)", rpm: Int(ac), minRPM: Int(mn), maxRPM: Int(mx)))
+            let range: (min: Int, max: Int) = i < cachedFanRanges.count ? cachedFanRanges[i] : (min: 0, max: 0)
+            out.append(FanReading(id: i, label: "Fan \(i + 1)", rpm: Int(ac), minRPM: range.min, maxRPM: range.max))
         }
         return out
     }
