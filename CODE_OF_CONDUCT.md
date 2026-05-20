@@ -24,6 +24,6 @@ If you experience or witness behavior that violates this code, please report it 
 
 ## Scope
 
-This code applies to all project spaces — issues, pull requests, discussions, commit messages, and anywhere else contributors interact about the project.
+This code applies to all project spaces: issues, pull requests, discussions, commit messages, and anywhere else contributors interact about the project.
 
 This document is inspired by the Contributor Covenant but kept intentionally short. For the full Contributor Covenant text, see https://www.contributor-covenant.org/.

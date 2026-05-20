@@ -7,9 +7,9 @@ enum DisplayMode: String, CaseIterable, Codable, Identifiable {
     var id: String { rawValue }
     var label: String {
         switch self {
-        case .minimal:  return "Minimal — Temp only"
-        case .balanced: return "Balanced — Temp + RAM"
-        case .full:     return "Full — CPU · RAM · Temp · Net"
+        case .minimal:  return "Minimal · Temp only"
+        case .balanced: return "Balanced · Temp + RAM"
+        case .full:     return "Full · CPU · RAM · Temp · Net"
         case .custom:   return "Custom"
         }
     }

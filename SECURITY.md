@@ -17,7 +17,7 @@ We aim to respond within 7 days. Please include:
 
 LudeVitals does not connect to the network, does not run as root, and does not require sandbox-exempt entitlements at install time. The most likely categories of security-relevant bugs are:
 
-- **Unsafe use of private IOKit / IOHID symbols** — undefined behavior in the dlsym'd functions could in principle be leveraged for memory corruption.
+- **Unsafe use of private IOKit / IOHID symbols**: undefined behavior in the dlsym'd functions could in principle be leveraged for memory corruption.
 - **Improper handling of Mach / sysctl return values** that lead to memory disclosure or out-of-bounds reads in samplers.
 - **Code-signing or distribution issues** that allow a tampered binary to look legitimate.
 

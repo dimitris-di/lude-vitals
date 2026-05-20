@@ -21,7 +21,7 @@ That builds the app, assembles the bundle, and launches it. The menu bar icon sh
 
 - No narrative comments. Identifiers should explain themselves.
 - One-line comments are acceptable for non-obvious workarounds (private API quirks, Mach API gotchas).
-- No force-unwraps at module boundaries — return `.zero` or `nil` defaults from samplers.
+- No force-unwraps at module boundaries; return `.zero` or `nil` defaults from samplers.
 - Keep the sampling path allocation-free where reasonable. This app should not contribute to its own readings.
 
 ## Adding a new metric

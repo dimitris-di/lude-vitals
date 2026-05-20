@@ -59,7 +59,7 @@ struct PopoverRoot: View {
     private func heroTiles(_ s: MetricSnapshot, history: [MetricSnapshot]) -> some View {
         let tempCelsius = s.thermal.cpuTemperature
         let tempValue: String = {
-            guard let c = tempCelsius, c > 3 else { return "—" }
+            guard let c = tempCelsius, c > 3 else { return "··" }
             return "\(Int(settings.tempUnit.convert(c).rounded()))°"
         }()
         let tempA11y: String = {
@@ -217,7 +217,7 @@ struct PopoverRoot: View {
 
     private func networkCard(_ s: MetricSnapshot) -> some View {
         Card(title: "Network", accessory: {
-            Text(s.network.primaryInterface ?? "—")
+            Text(s.network.primaryInterface ?? "··")
                 .font(.caption.monospaced())
                 .foregroundStyle(.secondary)
                 .accessibilityLabel("Primary interface \(s.network.primaryInterface ?? "none")")
@@ -601,7 +601,7 @@ struct ProcessListView: View {
             ).prefix(5)
 
             if rows.isEmpty {
-                Text("—").font(.caption).foregroundStyle(.secondary)
+                Text("··").font(.caption).foregroundStyle(.secondary)
             } else {
                 VStack(spacing: 6) {
                     ForEach(Array(rows)) { p in
@@ -648,7 +648,7 @@ enum Fmt {
         return "\(bps) B/s"
     }
     static func duration(minutes: Int) -> String {
-        if minutes <= 0 { return "—" }
+        if minutes <= 0 { return "··" }
         let h = minutes / 60, m = minutes % 60
         if h == 0 { return "\(m)m" }
         return "\(h)h \(m)m"

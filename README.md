@@ -2,7 +2,7 @@
 
 > A modern, native macOS menu bar system monitor. Lightweight by design.
 
-LudeVitals shows your Mac's vital signs — CPU, RAM, temperature, fans, network, and battery — right in the menu bar, with a clean popover for the full report. Built in Swift + SwiftUI. No Electron. No telemetry. No background daemons.
+LudeVitals shows your Mac's vital signs (CPU, RAM, temperature, fans, network, and battery) right in the menu bar, with a clean popover for the full report. Built in Swift + SwiftUI. No Electron. No telemetry. No background daemons.
 
 <p align="center">
   <img src="docs/popover.png" alt="LudeVitals popover" width="400" />
@@ -10,11 +10,11 @@ LudeVitals shows your Mac's vital signs — CPU, RAM, temperature, fans, network
 
 ## Why
 
-Most system monitors are either heavyweight Electron apps that consume more RAM than they report, or paid utilities with feature creep. LudeVitals does one thing: it answers "what is my Mac doing right now?" — instantly, natively, and with a clear visual hierarchy.
+Most system monitors are either heavyweight Electron apps that consume more RAM than they report, or paid utilities with feature creep. LudeVitals does one thing: it answers "what is my Mac doing right now?" instantly, natively, and with a clear visual hierarchy.
 
 - **Native.** Pure Swift + SwiftUI + AppKit. ~600 KB binary. Idle footprint < 30 MB RAM, < 0.3% CPU.
 - **Honest.** All metrics read from the kernel directly. No network requests. Ever.
-- **Customizable.** Choose what shows in the menu bar — temp only, temp + RAM, the full board, or pick your own.
+- **Customizable.** Choose what shows in the menu bar: temp only, temp + RAM, the full board, or pick your own.
 - **Open.** All sensor access patterns documented in source. No black-box magic.
 
 ## Features
@@ -62,7 +62,7 @@ Open the DMG and drag `LudeVitals.app` to `/Applications`.
 > xattr -dr com.apple.quarantine /Applications/LudeVitals.app
 > ```
 >
-> Then open it again — it will launch normally. This strips the macOS quarantine flag from a locally-trusted app. You only need to do this on first install (and after each update until signing is in place).
+> Then open it again and it will launch normally. This strips the macOS quarantine flag from a locally-trusted app. You only need to do this on first install (and after each update until signing is in place).
 >
 > If you'd rather not run the command, you can also right-click the app in Finder → **Open** → **Open** to bypass the warning one time per version.
 
@@ -76,16 +76,16 @@ cd LudeVitals
 make install
 ```
 
-`make install` builds in release mode, assembles the `.app` bundle, ad-hoc codesigns it, copies it to `/Applications`, and launches it. The first run will sit silently in the menu bar — give it 2 seconds to take its first sample.
+`make install` builds in release mode, assembles the `.app` bundle, ad-hoc codesigns it, copies it to `/Applications`, and launches it. The first run will sit silently in the menu bar; give it 2 seconds to take its first sample.
 
 Other targets:
-- `make app` — build the bundle in the project directory
-- `make run` — build and launch from the project directory
-- `make dmg` — produce `LudeVitals-<version>.dmg` for distribution
-- `make icon` — regenerate `Resources/AppIcon.icns`
-- `make benchmark` — print binary size and idle CPU / RSS for the running app
-- `make kill` — quit a running instance
-- `make clean` — remove build artifacts
+- `make app`: build the bundle in the project directory
+- `make run`: build and launch from the project directory
+- `make dmg`: produce `LudeVitals-<version>.dmg` for distribution
+- `make icon`: regenerate `Resources/AppIcon.icns`
+- `make benchmark`: print binary size and idle CPU / RSS for the running app
+- `make kill`: quit a running instance
+- `make clean`: remove build artifacts
 
 On managed Macs you may need `sudo make install` because `/Applications` is not user-writable.
 
@@ -101,7 +101,7 @@ The popover always shows the full report regardless of menu bar mode.
 LudeVitals/
 ├─ App/                  AppDelegate, status-item entry point
 ├─ Models/               MetricSnapshot (the data contract), RingBuffer, Settings
-├─ Services/             SamplingScheduler — single timer, fans out to samplers
+├─ Services/             SamplingScheduler: single timer, fans out to samplers
 ├─ Metrics/              One sampler per metric family
 │   ├─ CPUSampler        Mach host_processor_info + per-core delta + P/E detection
 │   ├─ MemorySampler     host_statistics64 + sysctl
@@ -109,8 +109,8 @@ LudeVitals/
 │   ├─ BatterySampler    IOPSCopyPowerSourcesInfo + AppleSmartBattery registry
 │   ├─ ThermalSampler    Combines IOHID sensors + SMC fans
 │   └─ Backends/
-│       ├─ IOHIDThermalReader   Private IOHIDEventSystemClient — Apple Silicon dies
-│       └─ IOReportFanReader    AppleSMC userclient — fan RPM
+│       ├─ IOHIDThermalReader   Private IOHIDEventSystemClient for Apple Silicon dies
+│       └─ IOReportFanReader    AppleSMC userclient for fan RPM
 └─ Views/                SwiftUI: menu bar label, popover, preferences
 ```
 
@@ -122,19 +122,19 @@ Samplers are stateful between ticks (they hold previous CPU ticks, previous byte
 
 ### Thermal access on Apple Silicon
 
-Apple does not expose CPU/GPU die temperatures via any public API. The widely used technique — pioneered in open-source projects like [Stats](https://github.com/exelban/stats), [asitop](https://github.com/tlkh/asitop), and [iStatistica](https://imagetasks.com/istatistica/) — is to dlsym private symbols out of IOKit:
+Apple does not expose CPU/GPU die temperatures via any public API. The widely used technique, pioneered in open-source projects like [Stats](https://github.com/exelban/stats), [asitop](https://github.com/tlkh/asitop), and [iStatistica](https://imagetasks.com/istatistica/), is to dlsym private symbols out of IOKit:
 
 - `IOHIDEventSystemClientCreate` + matching dict `PrimaryUsagePage=0xff00, PrimaryUsage=0x5` enumerates temperature sensor services
 - `IOHIDServiceClientCopyEvent(svc, kIOHIDEventTypeTemperature, 0, 0)` fetches a reading
 - `IOHIDEventGetFloatValue(event, kIOHIDEventTypeTemperature << 16)` extracts °C
 
-These symbols have been stable since macOS 11. If a future macOS version changes them, the thermal sampler degrades gracefully — temps go to `—`, the rest of the app keeps working.
+These symbols have been stable since macOS 11. If a future macOS version changes them, the thermal sampler degrades gracefully: temps go to `··`, the rest of the app keeps working.
 
 Fan RPMs are read from `AppleSMC` keys (`F0Ac`, `F0Mn`, `F0Mx`, …) which Apple Silicon still exposes for fan-equipped Macs. MacBook Air and other fanless models return an empty list silently.
 
 ## Privacy
 
-LudeVitals never connects to the network. There is no telemetry, no analytics, no auto-update check, no crash reporting service. The app reads kernel metrics, displays them, and ends. If you find a network connection coming out of LudeVitals, file a bug — it's almost certainly a sandboxing escape.
+LudeVitals never connects to the network. There is no telemetry, no analytics, no auto-update check, no crash reporting service. The app reads kernel metrics, displays them, and ends. If you find a network connection coming out of LudeVitals, file a bug; it's almost certainly a sandboxing escape.
 
 ## Roadmap
 
@@ -148,15 +148,15 @@ LudeVitals never connects to the network. There is no telemetry, no analytics, n
 
 ## Contributing
 
-Issues and pull requests welcome. Please keep changes focused — one fix or one feature per PR, with a clear description. Match the existing code style: no narrative comments, no premature abstractions, no force-unwraps at module boundaries.
+Issues and pull requests welcome. Please keep changes focused: one fix or one feature per PR, with a clear description. Match the existing code style: no narrative comments, no premature abstractions, no force-unwraps at module boundaries.
 
 For non-trivial changes, open an issue first so we can align on direction before you spend time writing code.
 
 ## Acknowledgments
 
-- The thermal-sensor technique is community knowledge first surfaced in [Stats by exelban](https://github.com/exelban/stats) — go give that project a star.
+- The thermal-sensor technique is community knowledge first surfaced in [Stats by exelban](https://github.com/exelban/stats); go give that project a star.
 - The macOS Mach / IOKit APIs are notoriously underdocumented; thanks to everyone who reverse-engineered them and wrote it up.
 
 ## License
 
-[MIT](LICENSE) — do whatever you want, attribution appreciated.
+[MIT](LICENSE). Do whatever you want, attribution appreciated.

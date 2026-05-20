@@ -34,7 +34,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 - CPU tick-mismatch on sleep/wake now returns a clean zero sample instead of garbage deltas.
 - Increased-Contrast users get bumped opacities so card borders and gradients remain visible.
 
-## [0.1.0] — 2026-05-21
+## [0.1.0] 2026-05-21
 
 ### Added
 
@@ -45,6 +45,6 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ### Known limitations
 
-- Not yet signed or notarized — Gatekeeper requires `xattr -dr com.apple.quarantine /Applications/LudeVitals.app` after install.
+- Not yet signed or notarized: Gatekeeper requires `xattr -dr com.apple.quarantine /Applications/LudeVitals.app` after install.
 - Apple Silicon only. Intel SMC thermal backend is on the roadmap.
 - Long-term metric history is not yet persisted (60-snapshot in-memory ring buffer drives the sparklines).
