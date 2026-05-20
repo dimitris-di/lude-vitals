@@ -1,0 +1,22 @@
+# Swift Package Manager
+.build/
+.swiftpm/
+Package.resolved
+
+# Xcode
+*.xcodeproj/
+DerivedData/
+*.xcuserstate
+
+# Built artifacts
+*.app
+*.dmg
+*.zip
+
+# macOS
+.DS_Store
+
+# Editors
+.vscode/
+.idea/
+*.swp
