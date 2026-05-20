@@ -102,29 +102,30 @@ struct PopoverRoot: View {
     // MARK: - Cores
 
     private func coresCard(_ s: MetricSnapshot) -> some View {
-        Card(title: "Cores") {
-            VStack(alignment: .leading, spacing: 10) {
+        let load = String(format: "%.2f  %.2f  %.2f",
+                          s.cpu.loadAverage.one,
+                          s.cpu.loadAverage.five,
+                          s.cpu.loadAverage.fifteen)
+        return Card(title: "Cores", accessory: {
+            HStack(spacing: 4) {
+                Text("load")
+                    .font(.caption2)
+                    .foregroundStyle(.tertiary)
+                Text(load)
+                    .font(.caption.monospacedDigit())
+                    .foregroundStyle(.secondary)
+            }
+            .accessibilityElement(children: .combine)
+            .accessibilityLabel("Load averages 1, 5, 15 minutes")
+            .accessibilityValue(load)
+        }) {
+            VStack(alignment: .leading, spacing: 8) {
                 let p = s.cpu.perCore.filter { $0.type == .performance }
                 let e = s.cpu.perCore.filter { $0.type == .efficiency }
                 let u = s.cpu.perCore.filter { $0.type == .unknown }
                 if !p.isEmpty { CoreRow(label: "P", clusterName: "Performance cores", cores: p) }
                 if !e.isEmpty { CoreRow(label: "E", clusterName: "Efficiency cores", cores: e) }
                 if !u.isEmpty { CoreRow(label: "•", clusterName: "Cores", cores: u) }
-                HStack(spacing: 14) {
-                    inlineKV("1m",  String(format: "%.2f", s.cpu.loadAverage.one))
-                        .accessibilityElement(children: .combine)
-                        .accessibilityLabel("Load average 1 minute")
-                        .accessibilityValue(String(format: "%.2f", s.cpu.loadAverage.one))
-                    inlineKV("5m",  String(format: "%.2f", s.cpu.loadAverage.five))
-                        .accessibilityElement(children: .combine)
-                        .accessibilityLabel("Load average 5 minutes")
-                        .accessibilityValue(String(format: "%.2f", s.cpu.loadAverage.five))
-                    inlineKV("15m", String(format: "%.2f", s.cpu.loadAverage.fifteen))
-                        .accessibilityElement(children: .combine)
-                        .accessibilityLabel("Load average 15 minutes")
-                        .accessibilityValue(String(format: "%.2f", s.cpu.loadAverage.fifteen))
-                }
-                .padding(.top, 2)
             }
         }
     }
@@ -424,28 +425,32 @@ struct CoreRow: View {
     @Environment(\.colorSchemeContrast) private var contrast
 
     var body: some View {
-        let trackOpacity = contrast == .increased ? 0.2 : 0.08
-        return HStack(alignment: .center, spacing: 10) {
-            Text(label)
-                .font(.caption.weight(.semibold))
-                .foregroundStyle(.secondary)
-                .frame(width: 12, alignment: .leading)
-                .accessibilityHidden(true)
+        let trackOpacity = contrast == .increased ? 0.20 : 0.10
+        let avg = average(cores)
+        return HStack(alignment: .center, spacing: 12) {
+            VStack(alignment: .leading, spacing: 0) {
+                Text(label)
+                    .font(.caption2.weight(.bold))
+                    .foregroundStyle(.secondary)
+                    .tracking(0.5)
+                Text("\(Int((avg * 100).rounded()))%")
+                    .font(.callout.monospacedDigit().weight(.semibold))
+            }
+            .frame(width: 36, alignment: .leading)
+            .accessibilityHidden(true)
+
             HStack(spacing: 3) {
                 ForEach(cores) { c in
                     CoreBar(usage: c.usage, trackOpacity: trackOpacity)
-                        .frame(width: 10, height: 26)
+                        .frame(maxWidth: .infinity)
+                        .frame(height: 24)
                         .accessibilityHidden(true)
                 }
             }
-            Spacer()
-            Text("\(Int((average(cores) * 100).rounded()))%")
-                .font(.caption.monospacedDigit())
-                .foregroundStyle(.secondary)
         }
         .accessibilityElement(children: .combine)
         .accessibilityLabel(clusterName)
-        .accessibilityValue("Average \(Int((average(cores) * 100).rounded())) percent across \(cores.count) cores")
+        .accessibilityValue("Average \(Int((avg * 100).rounded())) percent across \(cores.count) cores")
     }
 
     private func average(_ c: [CoreUsage]) -> Double {

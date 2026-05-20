@@ -4,8 +4,9 @@
 
 LudeVitals shows your Mac's vital signs — CPU, RAM, temperature, fans, network, and battery — right in the menu bar, with a clean popover for the full report. Built in Swift + SwiftUI. No Electron. No telemetry. No background daemons.
 
-![menu bar screenshot placeholder](docs/menubar.png)
-![popover screenshot placeholder](docs/popover.png)
+<p align="center">
+  <img src="docs/popover.png" alt="LudeVitals popover" width="400" />
+</p>
 
 ## Why
 
