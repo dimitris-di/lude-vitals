@@ -90,11 +90,16 @@ struct MenuBarLabel: View {
 
     static func compactRate(_ bps: UInt64) -> String {
         let v = Double(bps)
+        // Thresholds account for printf rounding: e.g. 999_999 / 1_000_000 = 0.9999
+        // formats as "1.0M" with %.1f, so the M-tier needs to start at 999_500.
         let raw: String
-        if v >= 10_000_000     { raw = String(format: "%.0fM", v / 1_000_000) }
-        else if v >= 1_000_000 { raw = String(format: "%.1fM", v / 1_000_000) }
-        else if v >= 1_000     { raw = String(format: "%.0fK", v / 1_000) }
-        else                   { raw = "0K" }
+        if v >= 99_950_000_000     { raw = "100G" }
+        else if v >= 9_950_000_000 { raw = String(format: "%.0fG", v / 1_000_000_000) }
+        else if v >= 999_500_000   { raw = String(format: "%.1fG", v / 1_000_000_000) }
+        else if v >= 9_950_000     { raw = String(format: "%.0fM", v / 1_000_000) }
+        else if v >= 999_500       { raw = String(format: "%.1fM", v / 1_000_000) }
+        else if v >= 1_000         { raw = String(format: "%.0fK", v / 1_000) }
+        else                       { raw = "0K" }
         return padDigits(raw, to: 4)
     }
 

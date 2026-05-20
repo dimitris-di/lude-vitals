@@ -19,9 +19,18 @@ final class MenuBarFormattingTests: XCTestCase {
     }
 
     func testCompactRateWidthConstant() {
-        let widths = [0, 500, 999, 1_000, 999_999, 1_000_000, 9_999_999, 10_000_000, 50_000_000, 999_999_999]
-            .map { MenuBarLabel.compactRate(UInt64($0)).count }
+        let inputs: [UInt64] = [
+            0, 500, 999,                          // sub-1K
+            1_000, 999_499,                       // K tier
+            999_500, 1_000_000, 9_949_999,        // M.M tier
+            9_950_000, 10_000_000, 999_499_999,   // MM tier
+            999_500_000, 1_000_000_000,           // G.G tier
+            9_949_999_999,                        // G.G tier upper
+            9_950_000_000, 50_000_000_000,        // GG tier
+            99_950_000_000, 500_000_000_000       // capped
+        ]
+        let widths = inputs.map { MenuBarLabel.compactRate($0).count }
         let unique = Set(widths)
-        XCTAssertEqual(unique, [4], "compactRate must produce constant-width output across all magnitudes")
+        XCTAssertEqual(unique, [4], "compactRate must produce constant-width output across all magnitudes; got widths: \(widths)")
     }
 }
