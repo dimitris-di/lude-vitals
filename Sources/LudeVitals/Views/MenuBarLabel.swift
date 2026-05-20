@@ -91,7 +91,8 @@ struct MenuBarLabel: View {
     static func compactRate(_ bps: UInt64) -> String {
         let v = Double(bps)
         let raw: String
-        if v >= 1_000_000      { raw = String(format: "%.1fM", v / 1_000_000) }
+        if v >= 10_000_000     { raw = String(format: "%.0fM", v / 1_000_000) }
+        else if v >= 1_000_000 { raw = String(format: "%.1fM", v / 1_000_000) }
         else if v >= 1_000     { raw = String(format: "%.0fK", v / 1_000) }
         else                   { raw = "0K" }
         return padDigits(raw, to: 4)
