@@ -69,13 +69,15 @@ final class SamplingSchedulerTests: XCTestCase {
         scheduler.start()
         defer { scheduler.stop() }
 
-        XCTAssertTrue(await waitFor { cpu.calls >= 1 })
+        let firstTick = await waitFor { cpu.calls >= 1 }
+        XCTAssertTrue(firstTick)
         XCTAssertEqual(cpu.contexts.last?.popoverIsOpen, true)
 
         let callsBefore = cpu.calls
         scheduler.popoverIsOpen = false
 
-        XCTAssertTrue(await waitFor { cpu.calls > callsBefore })
+        let nextTick = await waitFor { cpu.calls > callsBefore }
+        XCTAssertTrue(nextTick)
         XCTAssertEqual(cpu.contexts.last?.popoverIsOpen, false)
     }
 
@@ -102,7 +104,8 @@ final class SamplingSchedulerTests: XCTestCase {
         let scheduler = makeScheduler(cpu: cpu)
 
         scheduler.start()
-        XCTAssertTrue(await waitFor { scheduler.history.count >= 1 })
+        let ok = await waitFor { scheduler.history.count >= 1 }
+        XCTAssertTrue(ok)
 
         scheduler.stop()
         let frozenCount = scheduler.history.count
@@ -126,7 +129,8 @@ final class SamplingSchedulerTests: XCTestCase {
         scheduler.start()
         defer { scheduler.stop() }
 
-        XCTAssertTrue(await waitFor { scheduler.history.count >= 1 })
+        let ok = await waitFor { scheduler.history.count >= 1 }
+        XCTAssertTrue(ok)
 
         let snap = scheduler.latest
         XCTAssertEqual(snap.memory.used,  MemoryMetrics.zero.used)
