@@ -1,7 +1,6 @@
 # Swift Package Manager
 .build/
 .swiftpm/
-Package.resolved
 Packages/
 
 # Xcode
@@ -15,6 +14,9 @@ xcuserdata/
 *.dmg
 *.zip
 *.dSYM/
+.release/
+SHA256SUMS
+release-provenance.json
 
 # Icon generation intermediates
 AppIcon.iconset/

@@ -29,7 +29,7 @@ body:
     id: version
     attributes:
       label: LudeVitals version
-      description: Shown in Preferences → About, or use the DMG filename.
+      description: Shown at the bottom of Preferences, or use the DMG filename.
       placeholder: "0.1.0"
     validations:
       required: true
@@ -65,7 +65,7 @@ body:
     id: ips
     attributes:
       label: Crash log (.ips) or console output
-      description: Optional. If LudeVitals crashed, attach the `.ips` from `~/Library/Logs/DiagnosticReports/`.
+      description: Optional. If LudeVitals crashed, attach the `.ips` from `~/Library/Logs/DiagnosticReports/` after redacting usernames, home-directory paths, email addresses, tokens, local project paths, and device serial numbers.
       render: text
     validations:
       required: false

@@ -46,4 +46,22 @@ final class RingBufferTests: XCTestCase {
         r.append(42)
         XCTAssertEqual(r.values, [42])
     }
+
+    func testValuesRemainChronologicalAfterMultipleWraps() {
+        var r = RingBuffer<Int>(capacity: 4)
+        for i in 1...10 { r.append(i) }
+
+        XCTAssertEqual(r.count, 4)
+        XCTAssertEqual(r.values, [7, 8, 9, 10])
+        XCTAssertEqual(r.last, 10)
+    }
+
+    func testValuesPreserveNilWhenElementTypeIsOptional() {
+        var r = RingBuffer<Int?>(capacity: 3)
+        r.append(1)
+        r.append(nil)
+        r.append(3)
+
+        XCTAssertEqual(r.values, [1, nil, 3])
+    }
 }

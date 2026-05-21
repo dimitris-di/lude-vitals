@@ -11,11 +11,14 @@ final class StatusItemController: NSObject {
     private let host: NSHostingView<MenuBarLabel>
     private var cancellables: Set<AnyCancellable> = []
     private var lastWidth: CGFloat = -1
+    private let popoverSampleInterval: TimeInterval = 1.0
 
     init(scheduler: SamplingScheduler, settings: AppSettings) {
         self.scheduler = scheduler
         self.settings = settings
         self.statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
+        self.statusItem.behavior = .removalAllowed
+        self.statusItem.autosaveName = "LudeVitalsStatusItem"
 
         let pop = NSPopover()
         pop.behavior = .transient
@@ -28,6 +31,7 @@ final class StatusItemController: NSObject {
 
         self.host = NSHostingView(rootView: MenuBarLabel(scheduler: scheduler, settings: settings))
         super.init()
+        popover.delegate = self
 
         if let button = statusItem.button {
             button.image = nil
@@ -36,21 +40,36 @@ final class StatusItemController: NSObject {
             button.target = self
             button.action = #selector(handleClick(_:))
             button.sendAction(on: [.leftMouseUp, .rightMouseUp])
+            button.toolTip = "LudeVitals"
         }
 
         scheduler.$latest
             .receive(on: RunLoop.main)
-            .sink { [weak self] _ in self?.resize() }
+            .sink { [weak self] _ in
+                self?.resize()
+                self?.updateButtonAccessibility()
+            }
             .store(in: &cancellables)
 
         settings.objectWillChange
             .debounce(for: .milliseconds(100), scheduler: RunLoop.main)
             .sink { [weak self] _ in
-                DispatchQueue.main.async { self?.resize() }
+                DispatchQueue.main.async {
+                    self?.resize()
+                    self?.updateButtonAccessibility()
+                    self?.applySavedIntervalIfPopoverClosed()
+                }
             }
             .store(in: &cancellables)
 
+        NotificationCenter.default.publisher(for: UserDefaults.didChangeNotification)
+            .debounce(for: .milliseconds(100), scheduler: RunLoop.main)
+            .sink { [weak self] _ in self?.applySavedIntervalIfPopoverClosed() }
+            .store(in: &cancellables)
+
         resize()
+        updateButtonAccessibility()
+        applySavedIntervalIfPopoverClosed()
     }
 
     private func resize() {
@@ -80,21 +99,32 @@ final class StatusItemController: NSObject {
         guard let button = statusItem.button else { return }
         if popover.isShown {
             popover.performClose(nil)
-            scheduler.setInterval(settings.sampleInterval)
-            scheduler.popoverIsOpen = false
-            (scheduler.cpuSampler as? CPUSampler)?.collectTopProcesses = false
         } else {
-            scheduler.setInterval(1.0)
-            scheduler.popoverIsOpen = true
-            (scheduler.cpuSampler as? CPUSampler)?.collectTopProcesses = true
+            scheduler.setInterval(popoverSampleInterval)
+            setPopoverSamplingEnabled(true)
+            NSApp.activate(ignoringOtherApps: true)
             popover.show(relativeTo: button.bounds, of: button, preferredEdge: .minY)
             popover.contentViewController?.view.window?.makeKey()
         }
     }
 
+    private func applySavedIntervalIfPopoverClosed() {
+        guard !popover.isShown else { return }
+        scheduler.setInterval(settings.sampleInterval)
+    }
+
+    private func cleanupAfterPopoverClosed() {
+        setPopoverSamplingEnabled(false)
+        scheduler.setInterval(settings.sampleInterval)
+    }
+
+    private func setPopoverSamplingEnabled(_ enabled: Bool) {
+        scheduler.popoverIsOpen = enabled
+    }
+
     private func showContextMenu() {
         let menu = NSMenu()
-        let prefs = NSMenuItem(title: "Preferences…", action: #selector(openPrefs), keyEquivalent: ",")
+        let prefs = NSMenuItem(title: "Settings…", action: #selector(openPrefs), keyEquivalent: ",")
         prefs.target = self
         menu.addItem(prefs)
         menu.addItem(.separator())
@@ -110,4 +140,33 @@ final class StatusItemController: NSObject {
         (NSApp.delegate as? AppDelegate)?.prefsController.show()
     }
     @objc private func quit() { NSApp.terminate(nil) }
+
+    private func updateButtonAccessibility() {
+        guard let button = statusItem.button else { return }
+        let value = accessibilitySummary()
+        button.toolTip = value
+        button.setAccessibilityLabel("LudeVitals")
+        button.setAccessibilityValue(value)
+        button.setAccessibilityHelp("Press to open details. Right-click for Settings and Quit.")
+    }
+
+    private func accessibilitySummary() -> String {
+        let s = scheduler.latest
+        if s.timestamp == .distantPast { return "LudeVitals loading system vitals" }
+
+        let cpu = Int((s.cpu.totalUsage * 100).rounded())
+        let memory = Int((s.memory.usagePercent * 100).rounded())
+        var parts = ["CPU \(cpu) percent", "memory \(memory) percent"]
+        if let c = s.thermal.cpuTemperature, c > 3 {
+            let temp = Int(settings.tempUnit.convert(c).rounded())
+            parts.append("temperature \(temp) \(settings.tempUnit.symbol)")
+        }
+        return "LudeVitals, " + parts.joined(separator: ", ")
+    }
+}
+
+extension StatusItemController: NSPopoverDelegate {
+    func popoverDidClose(_ notification: Notification) {
+        cleanupAfterPopoverClosed()
+    }
 }

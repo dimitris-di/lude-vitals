@@ -1,5 +1,6 @@
 import Combine
 import Foundation
+import ServiceManagement
 import SwiftUI
 
 enum DisplayMode: String, CaseIterable, Codable, Identifiable {
@@ -58,6 +59,47 @@ final class AppSettings: ObservableObject {
             .debounce(for: .milliseconds(300), scheduler: DispatchQueue.main)
             .sink { [weak self] options in self?.persist(options) }
             .store(in: &cancellables)
+
+        refreshLaunchAtLoginStatus()
+    }
+
+    @discardableResult
+    func refreshLaunchAtLoginStatus() -> SMAppService.Status {
+        let status = SMAppService.mainApp.status
+        launchAtLogin = status == .enabled
+        return status
+    }
+
+    @discardableResult
+    func setLaunchAtLogin(_ enabled: Bool) throws -> SMAppService.Status {
+        let service = SMAppService.mainApp
+
+        do {
+            if enabled {
+                switch service.status {
+                case .enabled, .requiresApproval:
+                    break
+                case .notRegistered, .notFound:
+                    try service.register()
+                @unknown default:
+                    try service.register()
+                }
+            } else {
+                switch service.status {
+                case .enabled, .requiresApproval:
+                    try service.unregister()
+                case .notRegistered, .notFound:
+                    break
+                @unknown default:
+                    try service.unregister()
+                }
+            }
+        } catch {
+            refreshLaunchAtLoginStatus()
+            throw error
+        }
+
+        return refreshLaunchAtLoginStatus()
     }
 
     private func persist(_ opts: CustomDisplayOptions) {

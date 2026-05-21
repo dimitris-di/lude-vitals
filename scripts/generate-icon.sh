@@ -1,5 +1,5 @@
 #!/bin/bash
-# Regenerates Resources/AppIcon.icns from scratch using AppKit + iconutil.
+# Regenerates Resources/AppIcon.icns from original AppKit vector artwork.
 set -e
 
 cd "$(dirname "$0")/.."
@@ -9,34 +9,67 @@ rm -rf "$ICONSET"
 mkdir -p "$ICONSET"
 mkdir -p Resources
 
-# Render 1024 PNG via Swift one-liner
+# Render 1024 PNG via Swift drawing code.
 swift - <<'SWIFT'
 import AppKit
 
 let size = CGSize(width: 1024, height: 1024)
 let img = NSImage(size: size, flipped: false) { rect in
-    let g = NSGradient(colors: [
-        NSColor(red: 0.18, green: 0.55, blue: 0.95, alpha: 1),
-        NSColor(red: 0.45, green: 0.30, blue: 0.95, alpha: 1)
+    let background = NSBezierPath(roundedRect: rect, xRadius: 220, yRadius: 220)
+    NSGradient(colors: [
+        NSColor(red: 0.02, green: 0.42, blue: 0.54, alpha: 1),
+        NSColor(red: 0.10, green: 0.20, blue: 0.62, alpha: 1),
+        NSColor(red: 0.52, green: 0.18, blue: 0.38, alpha: 1)
     ])!
-    let path = NSBezierPath(roundedRect: rect, xRadius: 220, yRadius: 220)
-    g.draw(in: path, angle: 135)
+    .draw(in: background, angle: 135)
 
-    let cfg = NSImage.SymbolConfiguration(pointSize: 640, weight: .semibold)
-    if let s = NSImage(systemSymbolName: "waveform.path.ecg", accessibilityDescription: nil)?
-        .withSymbolConfiguration(cfg) {
-        let tinted = NSImage(size: s.size, flipped: false) { r in
-            s.draw(in: r)
-            NSColor.white.set()
-            r.fill(using: .sourceAtop)
-            return true
-        }
-        let p = CGPoint(
-            x: (size.width  - tinted.size.width)  / 2,
-            y: (size.height - tinted.size.height) / 2
-        )
-        tinted.draw(at: p, from: .zero, operation: .sourceOver, fraction: 1.0)
+    NSColor.white.withAlphaComponent(0.12).setFill()
+    NSBezierPath(roundedRect: rect.insetBy(dx: 54, dy: 54), xRadius: 174, yRadius: 174).fill()
+
+    NSColor(red: 0.03, green: 0.08, blue: 0.18, alpha: 0.18).setFill()
+    NSBezierPath(roundedRect: CGRect(x: 132, y: 304, width: 760, height: 416), xRadius: 104, yRadius: 104).fill()
+
+    let glow = NSShadow()
+    glow.shadowBlurRadius = 34
+    glow.shadowOffset = .zero
+    glow.shadowColor = NSColor(red: 0.35, green: 0.95, blue: 0.86, alpha: 0.55)
+
+    let pulse = NSBezierPath()
+    pulse.move(to: CGPoint(x: 150, y: 512))
+    pulse.line(to: CGPoint(x: 250, y: 512))
+    pulse.line(to: CGPoint(x: 304, y: 414))
+    pulse.line(to: CGPoint(x: 366, y: 628))
+    pulse.line(to: CGPoint(x: 426, y: 512))
+    pulse.line(to: CGPoint(x: 504, y: 512))
+    pulse.line(to: CGPoint(x: 556, y: 336))
+    pulse.line(to: CGPoint(x: 632, y: 704))
+    pulse.line(to: CGPoint(x: 704, y: 512))
+    pulse.line(to: CGPoint(x: 874, y: 512))
+    pulse.lineCapStyle = .round
+    pulse.lineJoinStyle = .round
+
+    NSGraphicsContext.saveGraphicsState()
+    glow.set()
+    pulse.lineWidth = 74
+    NSColor(red: 0.23, green: 0.95, blue: 0.84, alpha: 0.60).setStroke()
+    pulse.stroke()
+    NSGraphicsContext.restoreGraphicsState()
+
+    pulse.lineWidth = 50
+    NSColor.white.setStroke()
+    pulse.stroke()
+
+    pulse.lineWidth = 18
+    NSColor(red: 0.39, green: 0.98, blue: 0.91, alpha: 1).setStroke()
+    pulse.stroke()
+
+    NSColor.white.withAlphaComponent(0.96).setFill()
+    for point in [CGPoint(x: 150, y: 512), CGPoint(x: 874, y: 512)] {
+        NSBezierPath(ovalIn: CGRect(x: point.x - 28, y: point.y - 28, width: 56, height: 56)).fill()
     }
+
+    NSColor.white.withAlphaComponent(0.20).setFill()
+    NSBezierPath(roundedRect: CGRect(x: 186, y: 770, width: 220, height: 26), xRadius: 13, yRadius: 13).fill()
     return true
 }
 

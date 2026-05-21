@@ -24,7 +24,8 @@
 
 - [ ] Builds cleanly with no new warnings
 - [ ] No force-unwraps at module boundaries
-- [ ] No new network access or third-party dependencies
-- [ ] No telemetry, analytics, or auto-update calls added
+- [ ] No new network access, telemetry, analytics, auto-update, crash reporting, or third-party services added
+- [ ] No new third-party dependencies, or notices/licenses updated
+- [ ] Privacy/security docs updated if data handling, entitlements, signing, or distribution changed
 - [ ] Code follows the existing style (no narrative comments, focused diff)
 - [ ] Docs/CHANGELOG updated if user-visible behavior changed

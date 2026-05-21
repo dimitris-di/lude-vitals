@@ -18,6 +18,7 @@ struct PopoverRoot: View {
                 networkCard(s)
                 if let bat = s.battery { batteryCard(bat) }
                 processesCard(s)
+                footerActions
                 Spacer(minLength: 0)
             }
             .padding(14)
@@ -50,7 +51,7 @@ struct PopoverRoot: View {
             }
             .buttonStyle(.plain)
             .foregroundStyle(.secondary)
-            .accessibilityLabel("Preferences")
+            .accessibilityLabel("Settings")
         }
     }
 
@@ -296,6 +297,29 @@ struct PopoverRoot: View {
         Card(title: "Top processes") {
             ProcessListView(processes: s.cpu.topProcesses)
         }
+    }
+
+    private var footerActions: some View {
+        HStack(spacing: 10) {
+            Button {
+                (NSApp.delegate as? AppDelegate)?.prefsController.show()
+            } label: {
+                Label("Settings", systemImage: "gearshape")
+            }
+            .accessibilityHint("Opens LudeVitals settings")
+
+            Spacer()
+
+            Button {
+                NSApp.terminate(nil)
+            } label: {
+                Label("Quit LudeVitals", systemImage: "power")
+            }
+            .accessibilityHint("Quits LudeVitals")
+        }
+        .buttonStyle(.borderless)
+        .font(.callout)
+        .padding(.horizontal, 2)
     }
 
     // MARK: - Helpers

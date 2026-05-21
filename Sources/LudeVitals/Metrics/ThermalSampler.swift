@@ -9,7 +9,7 @@ final class ThermalSampler: AnySampler {
     private let hid = IOHIDThermalReader()
     private let smc = SMCFanReader()
 
-    func sample() -> ThermalMetrics {
+    func sample(context: SamplingContext) async -> ThermalMetrics {
         let readings = hid.read()
 
         var cpuSum = 0.0, cpuCount = 0

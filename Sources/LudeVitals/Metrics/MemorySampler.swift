@@ -11,19 +11,20 @@ final class MemorySampler: AnySampler {
     init() {
         self.totalBytes = Self.sysctlUInt64("hw.memsize") ?? 0
         var ps: vm_size_t = 0
-        host_page_size(mach_host_self(), &ps)
-        self.pageSize = UInt64(ps == 0 ? 4096 : ps)
+        let kr = host_page_size(mach_host_self(), &ps)
+        self.pageSize = UInt64(kr == KERN_SUCCESS && ps > 0 ? ps : 4096)
     }
 
-    func sample() -> MemoryMetrics {
+    func sample(context: SamplingContext) async -> MemoryMetrics {
         var stats = vm_statistics64()
-        var count = mach_msg_type_number_t(MemoryLayout<vm_statistics64_data_t>.size / MemoryLayout<integer_t>.size)
+        let expectedCount = mach_msg_type_number_t(MemoryLayout<vm_statistics64_data_t>.size / MemoryLayout<integer_t>.size)
+        var count = expectedCount
         let kr = withUnsafeMutablePointer(to: &stats) {
             $0.withMemoryRebound(to: integer_t.self, capacity: Int(count)) { ptr in
                 host_statistics64(mach_host_self(), HOST_VM_INFO64, ptr, &count)
             }
         }
-        guard kr == KERN_SUCCESS else { return .zero }
+        guard kr == KERN_SUCCESS, count >= expectedCount else { return .zero }
 
         let ps = pageSize
         let wired      = UInt64(stats.wire_count) * ps
@@ -39,7 +40,8 @@ final class MemorySampler: AnySampler {
         var swapSize = MemoryLayout<xsw_usage>.size
         var swapUsed: UInt64 = 0
         var swapTotal: UInt64 = 0
-        if sysctlbyname("vm.swapusage", &swap, &swapSize, nil, 0) == 0 {
+        if sysctlbyname("vm.swapusage", &swap, &swapSize, nil, 0) == 0,
+           swapSize >= MemoryLayout<xsw_usage>.size {
             swapUsed  = swap.xsu_used
             swapTotal = swap.xsu_total
         }
@@ -47,6 +49,7 @@ final class MemorySampler: AnySampler {
         var pressureRaw: Int32 = 0
         var pSize = MemoryLayout<Int32>.size
         let ok = sysctlbyname("kern.memorystatus_vm_pressure_level", &pressureRaw, &pSize, nil, 0) == 0
+            && pSize >= MemoryLayout<Int32>.size
         let pressure: MemoryPressure
         if ok {
             switch pressureRaw {
@@ -75,6 +78,8 @@ final class MemorySampler: AnySampler {
     private static func sysctlUInt64(_ name: String) -> UInt64? {
         var v: UInt64 = 0
         var size = MemoryLayout<UInt64>.size
-        return name.withCString { sysctlbyname($0, &v, &size, nil, 0) == 0 ? v : nil }
+        return name.withCString {
+            sysctlbyname($0, &v, &size, nil, 0) == 0 && size >= MemoryLayout<UInt64>.size ? v : nil
+        }
     }
 }

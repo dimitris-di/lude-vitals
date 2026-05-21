@@ -6,14 +6,18 @@ import IOKit.ps
 final class BatterySampler: AnySampler {
     typealias Output = BatteryMetrics?
 
-    func sample() -> BatteryMetrics? {
+    func sample(context: SamplingContext) async -> BatteryMetrics? {
         guard let blob = IOPSCopyPowerSourcesInfo()?.takeRetainedValue(),
-              let sources = IOPSCopyPowerSourcesList(blob)?.takeRetainedValue() as? [CFTypeRef],
-              let first = sources.first,
-              let info = IOPSGetPowerSourceDescription(blob, first)?.takeUnretainedValue() as? [String: Any] else {
+              let sources = IOPSCopyPowerSourcesList(blob)?.takeRetainedValue() as? [CFTypeRef] else {
             return nil
         }
-        guard (info[kIOPSTypeKey as String] as? String) == kIOPSInternalBatteryType else { return nil }
+
+        let info = sources.lazy.compactMap { source in
+            IOPSGetPowerSourceDescription(blob, source)?.takeUnretainedValue() as? [String: Any]
+        }.first { sourceInfo in
+            (sourceInfo[kIOPSTypeKey as String] as? String) == kIOPSInternalBatteryType
+        }
+        guard let info else { return nil }
 
         let current = info[kIOPSCurrentCapacityKey as String] as? Int ?? 0
         let maxCap  = info[kIOPSMaxCapacityKey as String]     as? Int ?? 100

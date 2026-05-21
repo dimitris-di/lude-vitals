@@ -19,6 +19,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 - `Card` accessory is now generic over `View` rather than `AnyView`.
 - Replaced deprecated `codesign --deep` with binary-first signing.
 - `make install` now waits for the old instance to fully exit before replacing the bundle.
+- README, SECURITY, and issue templates now document checksum-before-quarantine installs, offline/no-telemetry behavior, the unsandboxed local-access posture, crash-log redaction, and MIT notice-retention requirements.
 
 ### Added
 - `make benchmark` target prints binary size and idle CPU/RSS.
@@ -33,6 +34,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 - All samplers and their backends are now `@MainActor`-isolated; the `AnySampler` protocol is `@MainActor` for Swift 6 strict-concurrency readiness.
 - `SMCKeyData` stride is now checked with `precondition` (release-retained) rather than `assert`.
 - README now documents the comparison against Stats, iStat Menus, and Activity Monitor.
+- `PRIVACY.md`, `THIRD_PARTY_NOTICES.md`, and `docs/TROUBLESHOOTING.md` for privacy posture, dependency notices, Gatekeeper, source-build, sensor, launch-at-login, and crash-log troubleshooting.
 
 ### Fixed
 - `BatterySampler` no longer leaks a `CFTypeRef` per sample from `IORegistryEntryCreateCFProperty`.
@@ -55,6 +57,6 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ### Known limitations
 
-- Not yet signed or notarized: Gatekeeper requires `xattr -dr com.apple.quarantine /Applications/LudeVitals.app` after install.
+- Not yet Developer ID signed or notarized: Gatekeeper may require Finder **Open** approval or, after checksum verification, the quarantine troubleshooting fallback.
 - Apple Silicon only. Intel SMC thermal backend is on the roadmap.
 - Long-term metric history is not yet persisted (60-snapshot in-memory ring buffer drives the sparklines).

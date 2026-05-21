@@ -5,40 +5,137 @@ on:
     tags:
       - 'v*'
 
+permissions:
+  contents: read
+
 jobs:
   release:
     runs-on: macos-14
     permissions:
       contents: write
+      id-token: write
+      attestations: write
+    env:
+      APPLE_CODESIGN_IDENTITY: ${{ secrets.APPLE_CODESIGN_IDENTITY }}
+      APPLE_DEVELOPER_ID_CERTIFICATE_BASE64: ${{ secrets.APPLE_DEVELOPER_ID_CERTIFICATE_BASE64 }}
+      APPLE_DEVELOPER_ID_CERTIFICATE_PASSWORD: ${{ secrets.APPLE_DEVELOPER_ID_CERTIFICATE_PASSWORD }}
+      APPLE_NOTARY_APPLE_ID: ${{ secrets.APPLE_NOTARY_APPLE_ID }}
+      APPLE_NOTARY_PASSWORD: ${{ secrets.APPLE_NOTARY_PASSWORD }}
+      APPLE_NOTARY_TEAM_ID: ${{ secrets.APPLE_NOTARY_TEAM_ID }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5
 
-      - name: Verify tag matches VERSION
-        run: |
-          TAG="${GITHUB_REF_NAME#v}"
-          FILE="$(cat VERSION | tr -d '[:space:]')"
-          if [ "$TAG" != "$FILE" ]; then
-            echo "Tag $GITHUB_REF_NAME does not match VERSION file ($FILE)"
-            exit 1
-          fi
+      - name: Check release metadata
+        run: scripts/check-release-metadata.sh
 
       - name: Select Xcode
         run: sudo xcode-select -s /Applications/Xcode_15.4.app || sudo xcode-select -s /Applications/Xcode.app
 
-      - name: Build app bundle
-        run: make app
+      - name: Show toolchain
+        run: |
+          swift --version
+          xcodebuild -version
+
+      - name: Configure signing mode
+        id: signing
+        run: |
+          signing_count=0
+          [ -n "$APPLE_CODESIGN_IDENTITY" ] && signing_count=$((signing_count + 1))
+          [ -n "$APPLE_DEVELOPER_ID_CERTIFICATE_BASE64" ] && signing_count=$((signing_count + 1))
+          [ -n "$APPLE_DEVELOPER_ID_CERTIFICATE_PASSWORD" ] && signing_count=$((signing_count + 1))
+
+          notary_count=0
+          [ -n "$APPLE_NOTARY_APPLE_ID" ] && notary_count=$((notary_count + 1))
+          [ -n "$APPLE_NOTARY_PASSWORD" ] && notary_count=$((notary_count + 1))
+          [ -n "$APPLE_NOTARY_TEAM_ID" ] && notary_count=$((notary_count + 1))
+
+          if [ "$signing_count" -gt 0 ] && [ "$signing_count" -lt 3 ]; then
+            echo "Developer ID signing is partially configured; provide identity, certificate, and certificate password secrets."
+            exit 1
+          fi
+
+          if [ "$notary_count" -gt 0 ] && [ "$notary_count" -lt 3 ]; then
+            echo "Apple notarization is partially configured; provide Apple ID, team ID, and app-specific password secrets."
+            exit 1
+          fi
+
+          if [ "$signing_count" -eq 3 ] && [ "$notary_count" -ne 3 ]; then
+            echo "Developer ID release signing requires notarization secrets so spctl and stapler checks can run."
+            exit 1
+          fi
+
+          if [ "$signing_count" -eq 3 ]; then
+            echo "SIGNING_ENABLED=1" >> "$GITHUB_ENV"
+            echo "SIGN_IDENTITY=$APPLE_CODESIGN_IDENTITY" >> "$GITHUB_ENV"
+            echo "signing_enabled=1" >> "$GITHUB_OUTPUT"
+            echo "NOTARIZATION_AVAILABLE=1" >> "$GITHUB_ENV"
+            echo "notarization_available=1" >> "$GITHUB_OUTPUT"
+          else
+            echo "SIGNING_ENABLED=0" >> "$GITHUB_ENV"
+            echo "SIGN_IDENTITY=-" >> "$GITHUB_ENV"
+            echo "signing_enabled=0" >> "$GITHUB_OUTPUT"
+            echo "NOTARIZATION_AVAILABLE=0" >> "$GITHUB_ENV"
+            echo "notarization_available=0" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Import Developer ID certificate
+        if: steps.signing.outputs.signing_enabled == '1'
+        run: |
+          keychain="$RUNNER_TEMP/ludevitals-signing.keychain-db"
+          keychain_password="$(uuidgen)"
+          cert_path="$RUNNER_TEMP/developer-id.p12"
+
+          echo "$APPLE_DEVELOPER_ID_CERTIFICATE_BASE64" | base64 --decode > "$cert_path"
+          security create-keychain -p "$keychain_password" "$keychain"
+          security set-keychain-settings -lut 21600 "$keychain"
+          security unlock-keychain -p "$keychain_password" "$keychain"
+          security import "$cert_path" -k "$keychain" -P "$APPLE_DEVELOPER_ID_CERTIFICATE_PASSWORD" -T /usr/bin/codesign
+          security list-keychains -d user -s "$keychain" "$HOME/Library/Keychains/login.keychain-db"
+          security set-key-partition-list -S apple-tool:,apple:,codesign: -s -k "$keychain_password" "$keychain"
 
       - name: Run tests
         run: swift test -c release
 
       - name: Build DMG
-        run: make dmg
+        run: make dmg SIGN_IDENTITY="$SIGN_IDENTITY"
+
+      - name: Notarize DMG
+        if: steps.signing.outputs.signing_enabled == '1' && steps.signing.outputs.notarization_available == '1'
+        run: |
+          dmg="$(ls LudeVitals-*.dmg)"
+          xcrun notarytool submit "$dmg" \
+            --apple-id "$APPLE_NOTARY_APPLE_ID" \
+            --team-id "$APPLE_NOTARY_TEAM_ID" \
+            --password "$APPLE_NOTARY_PASSWORD" \
+            --wait
+          xcrun stapler staple "$dmg"
+          echo "NOTARIZATION_ENABLED=1" >> "$GITHUB_ENV"
+
+      - name: Verify release artifacts
+        run: |
+          dmg="$(ls LudeVitals-*.dmg)"
+          export DMG_PATH="$dmg"
+          if [ "${SIGNING_ENABLED:-0}" = "1" ]; then
+            export EXPECT_DEVELOPER_ID=1
+          fi
+          if [ "${NOTARIZATION_ENABLED:-0}" = "1" ]; then
+            export EXPECT_GATEKEEPER=1
+          fi
+          scripts/verify-release-artifacts.sh
 
       - name: Compute SHA256
-        run: shasum -a 256 LudeVitals-*.dmg | tee SHA256SUMS
+        run: shasum -a 256 LudeVitals-*.dmg > SHA256SUMS
+
+      - name: Write release provenance manifest
+        run: make provenance
+
+      - name: Attest DMG provenance
+        uses: actions/attest@59d89421af93a897026c735860bf21b6eb4f7b26
+        with:
+          subject-checksums: SHA256SUMS
 
       - name: Create draft release
-        uses: softprops/action-gh-release@v2
+        uses: softprops/action-gh-release@3bb12739c298aeb8a4eeaf626c5b8d85266b0e65  # v2.6.2
         with:
           draft: true
           name: "LudeVitals ${{ github.ref_name }}"
@@ -46,3 +143,4 @@ jobs:
           files: |
             LudeVitals-*.dmg
             SHA256SUMS
+            release-provenance.json

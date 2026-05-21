@@ -5,6 +5,9 @@ import IOKit
 // MacBook Air (no fans) returns FNum=0 or fails to open; we silently report no fans.
 @MainActor
 final class SMCFanReader {
+    private static let expectedKeyDataSize = 80
+    private static let maxKeyPayloadSize: UInt32 = 32
+
     private var connection: io_connect_t = 0
     private var attempted = false
     private var cachedFanCount: Int?
@@ -45,7 +48,10 @@ final class SMCFanReader {
     }
 
     private func ensureOpen() -> Bool {
-        precondition(MemoryLayout<SMCKeyData>.stride == 80, "SMCKeyData layout drift; SMC reads will fail silently")
+        guard MemoryLayout<SMCKeyData>.stride == Self.expectedKeyDataSize else {
+            attempted = true
+            return false
+        }
         if connection != 0 { return true }
         if attempted { return false }
         attempted = true
@@ -72,19 +78,24 @@ final class SMCFanReader {
                 IOConnectCallStructMethod(connection, 2, inPtr, inSize, outPtr, &outSize)
             }
         }
-        return kr == kIOReturnSuccess
+        return kr == kIOReturnSuccess && outSize == inSize
     }
 
     private func readKey(_ key: String) -> SMCKeyData? {
         guard ensureOpen() else { return nil }
+        let code = fourCC(key)
+        guard code != 0 else { return nil }
+
         var input = SMCKeyData()
-        input.key = fourCC(key)
+        input.key = code
         input.data8 = 9
         var info = SMCKeyData()
         if !call(&input, &info) || info.result != 0 { return nil }
+        guard info.keyInfoDataSize <= Self.maxKeyPayloadSize else { return nil }
+
         var read = SMCKeyData()
         var readInput = SMCKeyData()
-        readInput.key = fourCC(key)
+        readInput.key = code
         readInput.keyInfoDataSize = info.keyInfoDataSize
         readInput.keyInfoDataType = info.keyInfoDataType
         readInput.data8 = 5
@@ -100,9 +111,11 @@ final class SMCFanReader {
         let flt  = fourCC("flt ")
         return withUnsafeBytes(of: d.bytes) { raw -> Double? in
             if type == fpe2 {
+                guard d.keyInfoDataSize >= 2 else { return nil }
                 let v = (UInt16(raw[0]) << 8) | UInt16(raw[1])
                 return Double(v) / 4.0
             } else if type == flt {
+                guard d.keyInfoDataSize >= 4 else { return nil }
                 let v = (UInt32(raw[0]) << 24) | (UInt32(raw[1]) << 16) | (UInt32(raw[2]) << 8) | UInt32(raw[3])
                 return Double(Float(bitPattern: v))
             }
@@ -117,6 +130,7 @@ final class SMCFanReader {
             n = cached
         } else {
             guard let countData = readKey("FNum") else { return [] }
+            guard countData.keyInfoDataSize >= 1 else { return [] }
             let first = withUnsafeBytes(of: countData.bytes) { $0[0] }
             n = Int(first)
             cachedFanCount = n
